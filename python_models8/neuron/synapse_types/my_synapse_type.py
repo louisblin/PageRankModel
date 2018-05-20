@@ -66,14 +66,12 @@ class MySynapseType(AbstractSynapseType, AbstractContainsUnits):
         self._n_neurons = n_neurons
 
         # TODO: Store the parameters
-        self._my_ex_synapse_parameter = utility_calls.convert_param_to_numpy(
-            my_ex_synapse_parameter, n_neurons)
-        self._my_in_synapse_parameter = utility_calls.convert_param_to_numpy(
-            my_in_synapse_parameter, n_neurons)
-        self._my_exc_init = utility_calls.convert_param_to_numpy(
-            my_exc_init, n_neurons)
-        self._my_inh_init = utility_calls.convert_param_to_numpy(
-            my_inh_init, n_neurons)
+        self._my_ex_synapse_parameter = \
+            utility_calls.convert_param_to_numpy(my_ex_synapse_parameter, n_neurons)
+        self._my_in_synapse_parameter = \
+            utility_calls.convert_param_to_numpy(my_in_synapse_parameter, n_neurons)
+        self._my_exc_init = utility_calls.convert_param_to_numpy(my_exc_init, n_neurons)
+        self._my_inh_init = utility_calls.convert_param_to_numpy(my_inh_init, n_neurons)
 
     # TODO: Add any getters and setters for new parameters
 

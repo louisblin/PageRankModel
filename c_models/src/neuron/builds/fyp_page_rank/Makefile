@@ -1,6 +1,9 @@
 APP = $(notdir $(CURDIR))
 BUILD_DIR = build/
 
+# Override defaults
+NEURON_C = $(EXTRA_SRC_DIR)/neuron/neuron.c
+SPIKE_PROCESSING_C = $(EXTRA_SRC_DIR)/neuron/spike_processing.c
 
 # This is the neuron model implementation
 NEURON_MODEL = $(EXTRA_SRC_DIR)/neuron/models/my_neuron_model_impl.c

@@ -18,8 +18,7 @@ state_t neuron_model_state_update(
     // This takes the input and generates an input value, assumed to be a
     // current.  Note that the conversion to current from conductance is done
     // outside of this function, so does not need to be repeated here.
-    input_t input_this_timestep =
-        exc_input - inh_input + external_bias + neuron->I_offset;
+    input_t input_this_timestep = exc_input - inh_input + external_bias + neuron->I_offset;
 
 
     // TODO: Solve your equation here
