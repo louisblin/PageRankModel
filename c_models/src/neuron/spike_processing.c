@@ -1,4 +1,5 @@
-#include <neuron/spike_processing.h>
+#include "spike_processing.h"
+#include "neuron.h"
 #include <neuron/population_table/population_table.h>
 #include <neuron/synapse_row.h>
 #include <neuron/synapses.h>
@@ -163,9 +164,7 @@ static inline void _setup_synaptic_dma_write(uint32_t dma_buffer_index) {
 
 // Called when a multicast packet is received
 void _mcpl_packet_received_callback(uint key, uint payload) {
-//    use(payload);
-
-    log_info("MC Received spike %x=%d at %d, DMA Busy = %d", key, payload, time, dma_busy);
+    neuron_received_packet(key, payload, time);
 }
 
 // Called when a multicast packet is received

@@ -4,7 +4,7 @@
  *
  */
 
-#include <neuron/neuron.h>
+#include "neuron.h"
 #include <neuron/models/neuron_model.h>
 #include <neuron/input_types/input_type.h>
 #include <neuron/additional_inputs/additional_input.h>
@@ -23,6 +23,8 @@ void spin1_wfi();
 #define V_RECORDING_CHANNEL 1
 #define GSYN_EXCITATORY_RECORDING_CHANNEL 2
 #define GSYN_INHIBITORY_RECORDING_CHANNEL 3
+
+#define UNUSED 0
 
 //! Array of neuron states
 static neuron_pointer_t neuron_array;
@@ -89,8 +91,7 @@ typedef enum parmeters_in_neuron_parameter_data_region {
 //! private method for doing output debug data on the neurons
 static inline void _print_neurons() {
 
-//! only if the models are compiled in debug mode will this method contain
-//! said lines.
+//! only if the models are compiled in debug mode will this method contain these lines.
 #if LOG_LEVEL >= LOG_DEBUG
     log_debug("-------------------------------------\n");
     for (index_t n = 0; n < n_neurons; n++) {
@@ -104,8 +105,7 @@ static inline void _print_neurons() {
 //! private method for doing output debug data on the neurons
 static inline void _print_neuron_parameters() {
 
-//! only if the models are compiled in debug mode will this method contain
-//! said lines.
+//! only if the models are compiled in debug mode will this method contain these lines.
 #if LOG_LEVEL >= LOG_DEBUG
     log_debug("-------------------------------------\n");
     for (index_t n = 0; n < n_neurons; n++) {
@@ -136,13 +136,11 @@ bool _neuron_load_neuron_parameters(address_t address){
     next += (n_neurons * sizeof(input_type_t)) / 4;
 
     log_info("loading additional input type parameters");
-    memcpy(additional_input_array, &address[next],
-           n_neurons * sizeof(additional_input_t));
+    memcpy(additional_input_array, &address[next], n_neurons * sizeof(additional_input_t));
     next += (n_neurons * sizeof(additional_input_t)) / 4;
 
     log_info("loading threshold type parameters");
-    memcpy(threshold_type_array, &address[next],
-           n_neurons * sizeof(threshold_type_t));
+    memcpy(threshold_type_array, &address[next], n_neurons * sizeof(threshold_type_t));
 
     neuron_model_set_global_neuron_params(global_parameters);
 
@@ -228,8 +226,7 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
 
     // Allocate DTCM for input type array and copy block of data
     if (sizeof(input_type_t) != 0) {
-        input_type_array = (input_type_t *) spin1_malloc(
-            n_neurons * sizeof(input_type_t));
+        input_type_array = (input_type_t *) spin1_malloc(n_neurons * sizeof(input_type_t));
         if (input_type_array == NULL) {
             log_error("Unable to allocate input type array - Out of DTCM");
             return false;
@@ -311,8 +308,7 @@ void neuron_store_neuron_parameters(address_t address){
 
 //! \setter for the internal input buffers
 //! \param[in] input_buffers_value the new input buffers
-void neuron_set_neuron_synapse_shaping_params(
-        synapse_param_t *neuron_synapse_shaping_params_value) {
+void neuron_set_neuron_synapse_shaping_params(synapse_param_t *neuron_synapse_shaping_params_value){
     neuron_synapse_shaping_params = neuron_synapse_shaping_params_value;
 }
 
@@ -328,7 +324,6 @@ void neuron_do_timestep_update(timer_t time) {
     // Wait a random number of clock cycles
     uint32_t random_backoff_time = tc[T1_COUNT] - random_backoff;
     while (tc[T1_COUNT] > random_backoff_time) {
-
         // Do Nothing
     }
 
@@ -348,53 +343,47 @@ void neuron_do_timestep_update(timer_t time) {
     for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
 
         // Get the parameters for this neuron
-        neuron_pointer_t neuron = &neuron_array[neuron_index];
-        input_type_pointer_t input_type = &input_type_array[neuron_index];
-        threshold_type_pointer_t threshold_type =
-            &threshold_type_array[neuron_index];
-        additional_input_pointer_t additional_input =
-            &additional_input_array[neuron_index];
-        state_t voltage = neuron_model_get_membrane_voltage(neuron);
+        neuron_pointer_t           neuron           = &neuron_array[neuron_index];
+//        input_type_pointer_t       input_type       = &input_type_array[neuron_index];
+        threshold_type_pointer_t   threshold_type   = &threshold_type_array[neuron_index];
+        additional_input_pointer_t additional_input = &additional_input_array[neuron_index];
+
+        // Voltage is the rank for us
+        state_t rank = neuron_model_get_membrane_voltage(neuron);
 
         // If we should be recording potential, record this neuron parameter
-        voltages->states[neuron_index] = voltage;
+        voltages->states[neuron_index] = rank;
 
-        // Get excitatory and inhibitory input from synapses and convert it
-        // to current input
-        input_t exc_input_value = input_type_get_input_value(
-            synapse_types_get_excitatory_input(
-                &(neuron_synapse_shaping_params[neuron_index])),
-            input_type);
-        input_t inh_input_value = input_type_get_input_value(
-            synapse_types_get_inhibitory_input(
-                &(neuron_synapse_shaping_params[neuron_index])),
-            input_type);
-        input_t exc_input = input_type_convert_excitatory_input_to_current(
-            exc_input_value, input_type, voltage);
-        input_t inh_input = input_type_convert_inhibitory_input_to_current(
-            inh_input_value, input_type, voltage);
+//        // Get excitatory and inhibitory input from synapses and convert it
+//        // to current input
+//        input_t exc_input_value = input_type_get_input_value(
+//            synapse_types_get_excitatory_input(&(neuron_synapse_shaping_params[neuron_index])),
+//            input_type);
+//        input_t inh_input_value = input_type_get_input_value(
+//            synapse_types_get_inhibitory_input(&(neuron_synapse_shaping_params[neuron_index])),
+//            input_type);
+//        input_t exc_input = input_type_convert_excitatory_input_to_current(
+//            exc_input_value, input_type, voltage);
+//        input_t inh_input = input_type_convert_inhibitory_input_to_current(
+//            inh_input_value, input_type, voltage);
+//
+//        // Get external bias from any source of intrinsic plasticity
+//        input_t external_bias =
+//            synapse_dynamics_get_intrinsic_bias(time, neuron_index) +
+//            additional_input_get_input_value_as_current(additional_input, voltage);
+//
+//        // If we should be recording input, record the values
+//        inputs_excitatory->inputs[neuron_index].input = exc_input_value;
+//        inputs_inhibitory->inputs[neuron_index].input = inh_input_value;
 
-        // Get external bias from any source of intrinsic plasticity
-        input_t external_bias =
-            synapse_dynamics_get_intrinsic_bias(time, neuron_index) +
-            additional_input_get_input_value_as_current(
-                additional_input, voltage);
+        // Get the number of received edges
+        state_t received_count = neuron_model_state_update(UNUSED, UNUSED, UNUSED, neuron);
 
-        // If we should be recording input, record the values
-        inputs_excitatory->inputs[neuron_index].input = exc_input_value;
-        inputs_inhibitory->inputs[neuron_index].input = inh_input_value;
+        // Determine if a spike should occur
+        bool spike = threshold_type_is_above_threshold(received_count, threshold_type);
 
-        // update neuron parameters
-        state_t result = neuron_model_state_update(
-            exc_input, inh_input, external_bias, neuron);
-
-        // determine if a spike should occur
-        bool spike = threshold_type_is_above_threshold(result, threshold_type);
-
-        // If the neuron has spiked
-        if (spike) {
-            log_info("neuron %u spiked at time %u", neuron_index, time);
-
+        // If the neuron has spiked (+ always spike at t=0 to initialize simulation)
+        if (spike || time == 0) {
             // Tell the neuron model
             neuron_model_has_spiked(neuron);
 
@@ -407,29 +396,27 @@ void neuron_do_timestep_update(timer_t time) {
             // Record the spike
             out_spikes_set_spike(neuron_index);
 
-            // FIXME: figure out how use_key works...
-//            if (use_key) {
+            // TODO: figure out how use_key works...
+            if (use_key) {
 
                 // Wait until the expected time to send
                 while (tc[T1_COUNT] > expected_time) {
-
                     // Do Nothing
                 }
                 expected_time -= time_between_spikes;
 
                 // Send the spike
                 key_t k = key | neuron_index;
-                payload_t p = (payload_t) result;
+                payload_t p = (payload_t) rank;
 
-                log_info("Sending pkt %x=%x", k, p);
-                while (!spin1_send_mc_packet(key, p, WITH_PAYLOAD)) {
+                log_info("[t=%04u|#%03d] Sending pkt  %08x=%3.3k", time, neuron_index, k, rank);
+                while (!spin1_send_mc_packet(k, p, WITH_PAYLOAD)) {
                     spin1_delay_us(1);
                 }
-//            }
+            }
 
         } else {
-            log_info("the neuron %d has been determined to not spike",
-                      neuron_index);
+            log_info("The neuron %d has been determined to not spike", neuron_index);
         }
     }
 
@@ -482,4 +469,15 @@ void neuron_do_timestep_update(timer_t time) {
 
     // Re-enable interrupts
     spin1_mode_restore(cpsr);
+}
+
+void neuron_received_packet(key_t _key, payload_t _payload, uint32_t time) {
+    input_t key = (input_t) _key;
+    input_t payload = (input_t) _payload;
+
+    log_info("[t=%04u|#%03d] Received pkt %08x=%3.3k", time, (0xff & (int) _key), _key, payload);
+
+    // FIXME: use right key to identify receiver
+    neuron_pointer_t neuron = &neuron_array[(index_t) key];
+    neuron_model_state_update(key, payload, UNUSED, neuron);
 }

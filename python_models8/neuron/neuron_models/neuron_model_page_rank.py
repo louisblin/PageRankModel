@@ -67,11 +67,8 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
             setattr(self, _state_var, _state_init(val))
             setattr(self, initialize_name, _mk_initialize(_state_var))
 
-    # Required for obj[...] access of `setattr' methods
-    def __getitem__(self, key):
-        return getattr(self, key)
-
     # Mapping per-neuron parameters (`neuron_t' in C code)
+
     @overrides(AbstractNeuronModel.get_n_neural_parameters)
     def get_n_neural_parameters(self):
         return len(_NEURAL_PARAMETERS)
@@ -80,7 +77,7 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
     def get_neural_parameters(self):
         # Note: must match the order of the parameters in the `neuron_t' in the C code
         return [
-            NeuronParameter(self['_{}'.format(item.name.lower())], item.data_type)
+            NeuronParameter(getattr(self, '_'+item.name.lower()), item.data_type)
             for item in _NEURAL_PARAMETERS
         ]
 
@@ -89,6 +86,7 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
         return [item.data_type for item in _NEURAL_PARAMETERS]
 
     # Mapping population-wide parameters (`global_neuron_t' in C code)
+
     @overrides(AbstractNeuronModel.get_n_global_parameters)
     def get_n_global_parameters(self):
         return 1

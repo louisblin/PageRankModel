@@ -24,7 +24,8 @@ class PageRankDataHolder(DataHolder):
             rank_init=PageRankBase.none_pynn_default_parameters['rank_init'],
             curr_rank_acc_init=PageRankBase.none_pynn_default_parameters['curr_rank_acc_init'],
             curr_rank_count_init=PageRankBase.none_pynn_default_parameters['curr_rank_count_init'],
-            v_thresh=PageRankBase.default_parameters['v_thresh'],
+            incoming_edges_count=PageRankBase.default_parameters['incoming_edges_count'],
+
             tau_syn_E=PageRankBase.default_parameters['tau_syn_E'],
             tau_syn_I=PageRankBase.default_parameters['tau_syn_I'],
             isyn_exc=PageRankBase.default_parameters['isyn_exc'],
@@ -36,12 +37,13 @@ class PageRankDataHolder(DataHolder):
                 'incoming_spike_buffer_size': incoming_spike_buffer_size,
                 'constraints': constraints,
                 'label': label,
-                'v_thresh': v_thresh,
-                'tau_syn_E': tau_syn_E, 'tau_syn_I': tau_syn_I,
-                'isyn_exc': isyn_exc, 'isyn_inh': isyn_inh,
                 'rank_init': rank_init,
                 'curr_rank_acc_init': curr_rank_acc_init,
                 'curr_rank_count_init': curr_rank_count_init,
+                'incoming_edges_count': incoming_edges_count,
+
+                'tau_syn_E': tau_syn_E, 'tau_syn_I': tau_syn_I,
+                'isyn_exc': isyn_exc, 'isyn_inh': isyn_inh,
             }
         )
 

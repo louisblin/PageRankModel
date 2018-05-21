@@ -13,7 +13,7 @@ NEURON_MODEL_H = $(EXTRA_SRC_DIR)/neuron/models/neuron_model_page_rank.h
 INPUT_TYPE_H = $(SOURCE_DIR)/neuron/input_types/input_type_current.h
 
 # Header containing the threshold type (static in this case)
-THRESHOLD_TYPE_H = $(SOURCE_DIR)/neuron/threshold_types/threshold_type_static.h
+THRESHOLD_TYPE_H = $(EXTRA_SRC_DIR)/neuron/threshold_types/threshold_type_page_rank.h
 
 # Header containing the synapse shaping type (exponential in this case)
 SYNAPSE_TYPE_H = $(SOURCE_DIR)/neuron/synapse_types/synapse_types_exponential_impl.h

@@ -10,7 +10,7 @@ from python_models8.model_data_holders.page_rank_data_holder \
 
 
 # Set the run time of the execution
-run_time = 300
+run_time = 30
 
 # Set the time step of the simulation in milliseconds
 time_step = 1.0
@@ -22,21 +22,29 @@ n_neurons = 3
 weight = 10.0
 
 # Set the times at which to input a spike
-spike_times = range(0, run_time, 100)
+spike_times = range(0, run_time, 20)
 
 p.setup(time_step)
 
-spikeArray = {
-    "spike_times": spike_times
-}
-input_pop = p.Population(n_neurons, p.SpikeSourceArray(**spikeArray), label="input")
+# spikeArray = {
+#     "spike_times": spike_times
+# }
+# input_pop = p.Population(n_neurons, p.SpikeSourceArray(**spikeArray), label="input")
 
 
 models = []
 def synapsify(my_model):
-    p.Projection(input_pop, my_model,
-                 p.OneToOneConnector(),
-                 receptor_type='excitatory', synapse_type=p.StaticSynapse(weight=weight))
+
+    # p.Projection(input_pop, my_model,
+    #              p.OneToOneConnector(),
+    #              receptor_type='excitatory', synapse_type=p.StaticSynapse(weight=weight))
+    connections = [
+        (0, 1),
+        (1, 2),
+        (2, 0),
+    ]
+
+    p.Projection(my_model, my_model, p.FromListConnector(connections))
 
     my_model.record(['v'])
 
@@ -44,8 +52,13 @@ def synapsify(my_model):
 
 
 # Connected models
+page_rank_parameters = {
+    'incoming_edges_count': 1
+}
+
 for i in range(1):
-    synapsify(p.Population(n_neurons, Page_Rank(v_thresh=1), label="page_rank_{}".format(i+1)))
+    synapsify(p.Population(n_neurons, Page_Rank(**page_rank_parameters),
+                           label="page_rank_{}".format(i+1)))
 
 # Run
 p.run(run_time)

@@ -1,4 +1,4 @@
-MODELS = fyp_page_rank
+MODELS = page_rank
 #    my_model_curr_exp \
 #    my_model_curr_exp_my_additional_input \
 #    my_model_curr_exp_my_threshold \
