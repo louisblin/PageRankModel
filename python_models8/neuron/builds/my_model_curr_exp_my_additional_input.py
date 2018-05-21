@@ -8,8 +8,8 @@ from spynnaker.pyNN.models.neuron.threshold_types import ThresholdTypeStatic
 
 from python_models8.neuron.additional_inputs.my_additional_input \
     import MyAdditionalInput
-from python_models8.neuron.neuron_models.my_neuron_model \
-    import MyNeuronModel
+from python_models8.neuron.neuron_models.neuron_model_page_rank \
+    import NeuronModelPageRank
 
 
 class MyModelCurrExpMyAdditionalInputBase(AbstractPopulationVertex):
@@ -51,7 +51,7 @@ class MyModelCurrExpMyAdditionalInputBase(AbstractPopulationVertex):
             v_init=None):
 
         # create neuron model class
-        neuron_model = MyNeuronModel(
+        neuron_model = NeuronModelPageRank(
             n_neurons, i_offset, my_parameter)
 
         # create synapse type model

@@ -154,7 +154,7 @@ bool _neuron_load_neuron_parameters(address_t address){
 //! in SDRAM
 //! \return bool which is true if the reload of the neuron parameters was
 //! successful or not
-bool neuron_reload_neuron_parameters(address_t address){
+bool neuron_reload_neuron_parameters(address_t address) {
     log_info("neuron_reloading_neuron_parameters: starting");
     if (!_neuron_load_neuron_parameters(address)){
         return false;
@@ -178,9 +178,7 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
 
     random_backoff = address[RANDOM_BACKOFF];
     time_between_spikes = address[TIME_BETWEEN_SPIKES] * sv->cpu_clk;
-    log_info(
-        "\t back off = %u, time between spikes %u",
-        random_backoff, time_between_spikes);
+    log_info("\t back off = %u, time between spikes %u", random_backoff, time_between_spikes);
 
     // Check if there is a key to use
     use_key = address[HAS_KEY];
@@ -212,11 +210,9 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
 
     // allocate DTCM for the global parameter details
     if (sizeof(global_neuron_params_t) > 0) {
-        global_parameters = (global_neuron_params_t *) spin1_malloc(
-            sizeof(global_neuron_params_t));
+        global_parameters = (global_neuron_params_t *) spin1_malloc(sizeof(global_neuron_params_t));
         if (global_parameters == NULL) {
-            log_error("Unable to allocate global neuron parameters"
-                      "- Out of DTCM");
+            log_error("Unable to allocate global neuron parameters - Out of DTCM");
             return false;
         }
     }
@@ -397,7 +393,7 @@ void neuron_do_timestep_update(timer_t time) {
 
         // If the neuron has spiked
         if (spike) {
-            log_debug("neuron %u spiked at time %u", neuron_index, time);
+            log_info("neuron %u spiked at time %u", neuron_index, time);
 
             // Tell the neuron model
             neuron_model_has_spiked(neuron);
@@ -411,7 +407,8 @@ void neuron_do_timestep_update(timer_t time) {
             // Record the spike
             out_spikes_set_spike(neuron_index);
 
-            if (use_key) {
+            // FIXME: figure out how use_key works...
+//            if (use_key) {
 
                 // Wait until the expected time to send
                 while (tc[T1_COUNT] > expected_time) {
@@ -421,15 +418,17 @@ void neuron_do_timestep_update(timer_t time) {
                 expected_time -= time_between_spikes;
 
                 // Send the spike
-                while (!spin1_send_mc_packet(
-                        key | neuron_index, 0, NO_PAYLOAD)) {
+                key_t k = key | neuron_index;
+                payload_t p = (payload_t) result;
+
+                log_info("Sending pkt %x=%x", k, p);
+                while (!spin1_send_mc_packet(key, p, WITH_PAYLOAD)) {
                     spin1_delay_us(1);
                 }
-            }
-
+//            }
 
         } else {
-            log_debug("the neuron %d has been determined to not spike",
+            log_info("the neuron %d has been determined to not spike",
                       neuron_index);
         }
     }

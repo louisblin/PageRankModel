@@ -22,8 +22,8 @@ from spynnaker.pyNN.models.neuron.input_types import InputTypeCurrent
 #     import NeuronModelIzh
 
 # new model template
-from python_models8.neuron.neuron_models.my_neuron_model \
-    import MyNeuronModel
+from python_models8.neuron.neuron_models.neuron_model_page_rank \
+    import NeuronModelPageRank
 
 # TODO: synapse types (all imported for help, only use one)
 # standard
@@ -94,7 +94,7 @@ class MyModelCurrExpBase(AbstractPopulationVertex):
 
         # TODO: create your neuron model class (change if required)
         # create your neuron model class
-        neuron_model = MyNeuronModel(
+        neuron_model = NeuronModelPageRank(
             n_neurons, i_offset, my_parameter)
 
         # TODO: create your synapse type model class (change if required)

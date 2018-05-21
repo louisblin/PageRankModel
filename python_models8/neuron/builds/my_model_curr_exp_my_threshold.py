@@ -5,8 +5,8 @@ from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 from spynnaker.pyNN.models.neuron.input_types import InputTypeCurrent
 from spynnaker.pyNN.models.neuron.synapse_types import SynapseTypeExponential
 
-from python_models8.neuron.neuron_models.my_neuron_model \
-    import MyNeuronModel
+from python_models8.neuron.neuron_models.neuron_model_page_rank \
+    import NeuronModelPageRank
 from python_models8.neuron.threshold_types.my_threshold_type \
     import MyThresholdType
 
@@ -57,7 +57,7 @@ class MyModelCurrExpMyThresholdBase(AbstractPopulationVertex):
             v_init=None):
 
         # create neuron model class
-        neuron_model = MyNeuronModel(
+        neuron_model = NeuronModelPageRank(
             n_neurons, i_offset, my_parameter)
 
         # create synapse type model

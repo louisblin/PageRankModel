@@ -22,8 +22,8 @@ from spynnaker.pyNN.models.neuron.input_types import InputTypeCurrent
 #     import NeuronModelIzh
 
 # new model template
-from python_models8.neuron.neuron_models.my_neuron_model \
-    import MyNeuronModel
+from python_models8.neuron.neuron_models.neuron_model_page_rank \
+    import NeuronModelPageRank
 
 # TODO: synapse types (all imported for help, only use one)
 # standard
@@ -51,14 +51,17 @@ class PageRankBase(AbstractPopulationVertex):
     # For more complex models, you might need to reduce this number.
     _model_based_max_atoms_per_core = 256
 
-    # TODO: update accordingly
-    # default parameters for this build. Used when end user has not entered any
+    # Default parameters for this build, used when end user has not entered any
     default_parameters = {
         'v_thresh': -50.0, 'tau_syn_E': 5.0, 'tau_syn_I': 5.0,
-        'isyn_exc': 0.0, 'isyn_inh': 0.0,
-        'i_offset': 0, 'my_parameter': -70.0}
+        'isyn_exc': 0.0, 'isyn_inh': 0.0
+    }
 
-    none_pynn_default_parameters = {'v_init': None}
+    none_pynn_default_parameters = {
+        'rank_init': 1,
+        'curr_rank_acc_init': 0,
+        'curr_rank_count_init': 0
+    }
 
     def __init__(
             self, n_neurons, spikes_per_second=AbstractPopulationVertex.
@@ -70,9 +73,7 @@ class PageRankBase(AbstractPopulationVertex):
             constraints=AbstractPopulationVertex.none_pynn_default_parameters['constraints'],
             label=AbstractPopulationVertex.none_pynn_default_parameters['label'],
 
-            # TODO: neuron model parameters (add / remove as required)
-            my_parameter=default_parameters['my_parameter'],
-            i_offset=default_parameters['i_offset'],
+            # Model parameters (add / remove as required)
 
             # TODO: threshold types parameters (add / remove as required)
             v_thresh=default_parameters['v_thresh'],
@@ -83,12 +84,13 @@ class PageRankBase(AbstractPopulationVertex):
             isyn_exc=default_parameters['isyn_exc'],
             isyn_inh=default_parameters['isyn_inh'],
 
-            # TODO: Optionally, you can add initial values for the state
-            # variables; this is not technically done in PyNN
-            v_init=none_pynn_default_parameters['v_init']):
+            # Initial values for the state variables; this is not technically done in PyNN
+            rank_init=none_pynn_default_parameters['rank_init'],
+            curr_rank_acc_init=none_pynn_default_parameters['curr_rank_acc_init'],
+            curr_rank_count_init=none_pynn_default_parameters['curr_rank_count_init']):
 
-        # TODO: create your neuron model class (change if required)
-        neuron_model = MyNeuronModel(n_neurons, i_offset, my_parameter)
+        neuron_model = NeuronModelPageRank(
+            n_neurons, rank_init, curr_rank_acc_init, curr_rank_count_init)
 
         # TODO: create your synapse type model class (change if required)
         synapse_type = SynapseTypeExponential(n_neurons, tau_syn_E, tau_syn_I, isyn_exc, isyn_inh)
@@ -126,7 +128,3 @@ class PageRankBase(AbstractPopulationVertex):
     @staticmethod
     def set_max_atoms_per_core(new_value):
         PageRankBase._model_based_max_atoms_per_core = new_value
-
-    @property
-    def my_parameter(self):
-        return self.default_parameters['my_parameter']
