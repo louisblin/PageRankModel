@@ -1,30 +1,26 @@
-# import spynnaker8 and plotting stuff
 import spynnaker8 as p
 from pyNN.utility.plotting import Figure, Panel
 import matplotlib.pyplot as plt
 
-import sys
+from python_models8.model_data_holders.page_rank_data_holder import PageRankDataHolder as Page_Rank
+from python_models8.synapse_dynamics.synapse_dynamics_noop import SynapseDynamicsNoOp
 
-from python_models8.model_data_holders.page_rank_data_holder \
-    import PageRankDataHolder as Page_Rank
+import sys
 
 
 # Set the run time of the execution
-run_time = 30
+run_time = 100
 
 # Set the time step of the simulation in milliseconds
 time_step = 1.0
 
 # Set the number of neurons to simulate
-n_neurons = 3
-
-# Set the weight of input spikes
-weight = 10.0
+n_neurons = 5
 
 # Set the times at which to input a spike
 spike_times = range(0, run_time, 20)
 
-p.setup(time_step)
+p.setup(time_step, min_delay=time_step)
 
 # spikeArray = {
 #     "spike_times": spike_times
@@ -44,7 +40,9 @@ def synapsify(my_model):
         (2, 0),
     ]
 
-    p.Projection(my_model, my_model, p.FromListConnector(connections))
+    p.Projection(my_model, my_model,
+                 p.FromListConnector(connections),
+                 synapse_type=SynapseDynamicsNoOp())
 
     my_model.record(['v'])
 
@@ -74,7 +72,7 @@ for m in models:
     )
     print('label={} :: {}'.format(m.label, v))
 
-if len(sys.argv) >=2 and sys.argv[1] == '--pause':
+if len(sys.argv) >= 2 and sys.argv[1] == '--pause':
     raw_input('Press any key to continue...')
 else:
     Figure(*panels, title="Custom models", annotations="Simulated with {}".format(p.name()))

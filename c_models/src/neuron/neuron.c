@@ -7,7 +7,6 @@
 #include "neuron.h"
 #include <neuron/models/neuron_model.h>
 #include <neuron/input_types/input_type.h>
-#include <neuron/additional_inputs/additional_input.h>
 #include <neuron/threshold_types/threshold_type.h>
 #include <neuron/synapse_types/synapse_types.h>
 #include <neuron/plasticity/synapse_dynamics.h>
@@ -31,9 +30,6 @@ static neuron_pointer_t neuron_array;
 
 //! Input states array
 static input_type_pointer_t input_type_array;
-
-//! Additional input array
-static additional_input_pointer_t additional_input_array;
 
 //! Threshold states array
 static threshold_type_pointer_t threshold_type_array;
@@ -135,10 +131,6 @@ bool _neuron_load_neuron_parameters(address_t address){
     memcpy(input_type_array, &address[next], n_neurons * sizeof(input_type_t));
     next += (n_neurons * sizeof(input_type_t)) / 4;
 
-    log_info("loading additional input type parameters");
-    memcpy(additional_input_array, &address[next], n_neurons * sizeof(additional_input_t));
-    next += (n_neurons * sizeof(additional_input_t)) / 4;
-
     log_info("loading threshold type parameters");
     memcpy(threshold_type_array, &address[next], n_neurons * sizeof(threshold_type_t));
 
@@ -233,17 +225,6 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
         }
     }
 
-    // Allocate DTCM for additional input array and copy block of data
-    if (sizeof(additional_input_t) != 0) {
-        additional_input_array = (additional_input_pointer_t) spin1_malloc(
-            n_neurons * sizeof(additional_input_t));
-        if (additional_input_array == NULL) {
-            log_error("Unable to allocate additional input array"
-                      " - Out of DTCM");
-            return false;
-        }
-    }
-
     // Allocate DTCM for threshold type array and copy block of data
     if (sizeof(threshold_type_t) != 0) {
         threshold_type_array = (threshold_type_t *) spin1_malloc(
@@ -296,11 +277,6 @@ void neuron_store_neuron_parameters(address_t address){
     memcpy(&address[next], input_type_array, n_neurons * sizeof(input_type_t));
     next += (n_neurons * sizeof(input_type_t)) / 4;
 
-    log_info("writing additional input type parameters");
-    memcpy(&address[next], additional_input_array,
-           n_neurons * sizeof(additional_input_t));
-    next += (n_neurons * sizeof(additional_input_t)) / 4;
-
     log_info("writing threshold type parameters");
     memcpy(&address[next], threshold_type_array,
            n_neurons * sizeof(threshold_type_t));
@@ -344,37 +320,13 @@ void neuron_do_timestep_update(timer_t time) {
 
         // Get the parameters for this neuron
         neuron_pointer_t           neuron           = &neuron_array[neuron_index];
-//        input_type_pointer_t       input_type       = &input_type_array[neuron_index];
         threshold_type_pointer_t   threshold_type   = &threshold_type_array[neuron_index];
-        additional_input_pointer_t additional_input = &additional_input_array[neuron_index];
 
         // Voltage is the rank for us
         state_t rank = neuron_model_get_membrane_voltage(neuron);
 
         // If we should be recording potential, record this neuron parameter
         voltages->states[neuron_index] = rank;
-
-//        // Get excitatory and inhibitory input from synapses and convert it
-//        // to current input
-//        input_t exc_input_value = input_type_get_input_value(
-//            synapse_types_get_excitatory_input(&(neuron_synapse_shaping_params[neuron_index])),
-//            input_type);
-//        input_t inh_input_value = input_type_get_input_value(
-//            synapse_types_get_inhibitory_input(&(neuron_synapse_shaping_params[neuron_index])),
-//            input_type);
-//        input_t exc_input = input_type_convert_excitatory_input_to_current(
-//            exc_input_value, input_type, voltage);
-//        input_t inh_input = input_type_convert_inhibitory_input_to_current(
-//            inh_input_value, input_type, voltage);
-//
-//        // Get external bias from any source of intrinsic plasticity
-//        input_t external_bias =
-//            synapse_dynamics_get_intrinsic_bias(time, neuron_index) +
-//            additional_input_get_input_value_as_current(additional_input, voltage);
-//
-//        // If we should be recording input, record the values
-//        inputs_excitatory->inputs[neuron_index].input = exc_input_value;
-//        inputs_inhibitory->inputs[neuron_index].input = inh_input_value;
 
         // Get the number of received edges
         state_t received_count = neuron_model_state_update(UNUSED, UNUSED, UNUSED, neuron);
@@ -386,9 +338,6 @@ void neuron_do_timestep_update(timer_t time) {
         if (spike || time == 0) {
             // Tell the neuron model
             neuron_model_has_spiked(neuron);
-
-            // Tell the additional input
-            additional_input_has_spiked(additional_input);
 
             // Do any required synapse processing
             synapse_dynamics_process_post_synaptic_event(time, neuron_index);

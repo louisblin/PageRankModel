@@ -7,7 +7,7 @@ CURRENT_DIR := $(dir $(MAKEFILE_PATH))
 EXTRA_SRC_DIR := $(abspath $(CURRENT_DIR)/../..)
 SOURCE_DIRS += $(EXTRA_SRC_DIR)
 APP_OUTPUT_DIR := $(abspath $(CURRENT_DIR)../../../../python_models8/model_binaries/)/
-CFLAGS += -I$(NEURAL_MODELLING_DIRS)/src
+CFLAGS += -I$(NEURAL_MODELLING_DIRS)/src -Wno-type-limits
 
 EXTRA_SYNAPSE_TYPE_OBJECTS +=
 EXTRA_STDP += 
@@ -21,6 +21,13 @@ endif
 ifndef SPIKE_PROCESSING_C
     SPIKE_PROCESSING_C = $(SOURCE_DIR)/neuron/spike_processing.c
 endif
+
+# Input type not used for Page Rank, but required for compilation
+INPUT_TYPE_H = $(SOURCE_DIR)/neuron/input_types/input_type_current.h
+
+# Synapse dynamics type not used for Page Rank, but required for compilation
+SYNAPSE_DYNAMICS = $(SOURCE_DIR)/neuron/plasticity/synapse_dynamics_static_impl.c
+
 
 include $(NEURAL_MODELLING_DIRS)/src/Makefile.paths
 include $(EXTRA_SRC_DIR)/neuron/builds/Makefile.neural_build

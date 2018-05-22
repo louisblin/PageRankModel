@@ -1,38 +1,9 @@
 # main interface to use the spynnaker related tools.
 # ALL MODELS MUST INHERIT FROM THIS
 from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
-
-
-# TODO: additional inputs (import as required)
-# There are no standard models for this, so import your own
-# from python_models8.neuron.additional_inputs.my_additional_input \
-#    import MyAdditionalInput
-
-# TODO: input types (all imported for help, only use one)
 from spynnaker.pyNN.models.neuron.input_types import InputTypeCurrent
-# from spynnaker.pyNN.models.neuron.input_types import InputTypeConductance
-
-# TODO: neuron models (all imported for help, only use one)
-# standard
-# from spynnaker.pyNN.models.neuron.neuron_models \
-#     import NeuronModelLeakyIntegrateAndFire
-# from spynnaker.pyNN.models.neuron.neuron_models \
-#     import NeuronModelLeakyIntegrate
-# from spynnaker.pyNN.models.neuron.neuron_models \
-#     import NeuronModelIzh
-
 from python_models8.neuron.neuron_models.neuron_model_page_rank import NeuronModelPageRank
-
-# TODO: synapse types (all imported for help, only use one)
-# standard
-from spynnaker.pyNN.models.neuron.synapse_types import SynapseTypeExponential
-# from spynnaker.pyNN.models.neuron.synapse_types\
-#     import SynapseTypeDualExponential
-
-# new model template
-# from python_models8.neuron.synapse_types.my_synapse_type \
-#     import MySynapseType
-
+from python_models8.neuron.synapse_types.synapse_type_noop import SynapseTypeNoOp
 from python_models8.neuron.threshold_types.threshold_type_page_rank import ThresholdTypePageRank
 
 
@@ -44,7 +15,6 @@ class PageRankBase(AbstractPopulationVertex):
 
     # Default parameters for this build, used when end user has not entered any
     default_parameters = {
-        'tau_syn_E': 5.0, 'tau_syn_I': 5.0, 'isyn_exc': 0.0, 'isyn_inh': 0.0,
         'incoming_edges_count': 0,
     }
 
@@ -69,12 +39,6 @@ class PageRankBase(AbstractPopulationVertex):
             # Threshold types parameters
             incoming_edges_count=default_parameters['incoming_edges_count'],
 
-            # TODO: synapse type parameters (add /remove as required)
-            tau_syn_E=default_parameters['tau_syn_E'],
-            tau_syn_I=default_parameters['tau_syn_I'],
-            isyn_exc=default_parameters['isyn_exc'],
-            isyn_inh=default_parameters['isyn_inh'],
-
             # Initial values for the state variables; this is not technically done in PyNN
             rank_init=none_pynn_default_parameters['rank_init'],
             curr_rank_acc_init=none_pynn_default_parameters['curr_rank_acc_init'],
@@ -83,10 +47,8 @@ class PageRankBase(AbstractPopulationVertex):
         neuron_model = NeuronModelPageRank(
             n_neurons, rank_init, curr_rank_acc_init, curr_rank_count_init)
 
-        # TODO: create your synapse type model class (change if required)
-        synapse_type = SynapseTypeExponential(n_neurons, tau_syn_E, tau_syn_I, isyn_exc, isyn_inh)
+        synapse_type = SynapseTypeNoOp()
 
-        # TODO: create your input type model class (change if required)
         input_type = InputTypeCurrent()
 
         threshold_type = ThresholdTypePageRank(n_neurons, incoming_edges_count)

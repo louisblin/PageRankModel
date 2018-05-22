@@ -24,12 +24,7 @@ class PageRankDataHolder(DataHolder):
             rank_init=PageRankBase.none_pynn_default_parameters['rank_init'],
             curr_rank_acc_init=PageRankBase.none_pynn_default_parameters['curr_rank_acc_init'],
             curr_rank_count_init=PageRankBase.none_pynn_default_parameters['curr_rank_count_init'],
-            incoming_edges_count=PageRankBase.default_parameters['incoming_edges_count'],
-
-            tau_syn_E=PageRankBase.default_parameters['tau_syn_E'],
-            tau_syn_I=PageRankBase.default_parameters['tau_syn_I'],
-            isyn_exc=PageRankBase.default_parameters['isyn_exc'],
-            isyn_inh=PageRankBase.default_parameters['isyn_inh']):
+            incoming_edges_count=PageRankBase.default_parameters['incoming_edges_count']):
         DataHolder.__init__(
             self, {
                 'spikes_per_second': spikes_per_second,
@@ -41,9 +36,6 @@ class PageRankDataHolder(DataHolder):
                 'curr_rank_acc_init': curr_rank_acc_init,
                 'curr_rank_count_init': curr_rank_count_init,
                 'incoming_edges_count': incoming_edges_count,
-
-                'tau_syn_E': tau_syn_E, 'tau_syn_I': tau_syn_I,
-                'isyn_exc': isyn_exc, 'isyn_inh': isyn_inh,
             }
         )
 

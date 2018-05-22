@@ -59,6 +59,4 @@ class ThresholdTypePageRank(AbstractThresholdType):
         return [item.data_type for item in _THRESHOLD_TYPES]
 
     def get_n_cpu_cycles_per_neuron(self):
-        # TODO: update to the number of cycles used by threshold_type_is_above_threshold
-        #   Note: This can be guessed
-        return 10
+        return 2
