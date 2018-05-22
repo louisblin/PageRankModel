@@ -193,9 +193,8 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
 
     // log message for debug purposes
     log_info(
-        "\t neurons = %u, spike buffer size = %u, params size = %u,"
-        "input type size = %u, threshold size = %u", n_neurons,
-        *incoming_spike_buffer_size, sizeof(neuron_t),
+        "\t neurons = %u, spike buffer size = %u, params size = %u, input type size = %u,"
+        " threshold size = %u", n_neurons, *incoming_spike_buffer_size, sizeof(neuron_t),
         sizeof(input_type_t), sizeof(threshold_type_t));
 
     // allocate DTCM for the global parameter details
@@ -278,8 +277,7 @@ void neuron_store_neuron_parameters(address_t address){
     next += (n_neurons * sizeof(input_type_t)) / 4;
 
     log_info("writing threshold type parameters");
-    memcpy(&address[next], threshold_type_array,
-           n_neurons * sizeof(threshold_type_t));
+    memcpy(&address[next], threshold_type_array, n_neurons * sizeof(threshold_type_t));
 }
 
 //! \setter for the internal input buffers
@@ -319,8 +317,8 @@ void neuron_do_timestep_update(timer_t time) {
     for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
 
         // Get the parameters for this neuron
-        neuron_pointer_t           neuron           = &neuron_array[neuron_index];
-        threshold_type_pointer_t   threshold_type   = &threshold_type_array[neuron_index];
+        neuron_pointer_t         neuron         = &neuron_array[neuron_index];
+        threshold_type_pointer_t threshold_type = &threshold_type_array[neuron_index];
 
         // Voltage is the rank for us
         state_t rank = neuron_model_get_membrane_voltage(neuron);
@@ -383,8 +381,7 @@ void neuron_do_timestep_update(timer_t time) {
     }
 
     // record neuron inputs (excitatory) if needed
-    if (recording_is_channel_enabled(
-            recording_flags, GSYN_EXCITATORY_RECORDING_CHANNEL)) {
+    if (recording_is_channel_enabled(recording_flags, GSYN_EXCITATORY_RECORDING_CHANNEL)) {
         n_recordings_outstanding += 1;
         inputs_excitatory->time = time;
         recording_record_and_notify(
@@ -393,8 +390,7 @@ void neuron_do_timestep_update(timer_t time) {
     }
 
     // record neuron inputs (inhibitory) if needed
-    if (recording_is_channel_enabled(
-            recording_flags, GSYN_INHIBITORY_RECORDING_CHANNEL)) {
+    if (recording_is_channel_enabled(recording_flags, GSYN_INHIBITORY_RECORDING_CHANNEL)) {
         n_recordings_outstanding += 1;
         inputs_inhibitory->time = time;
         recording_record_and_notify(
@@ -407,8 +403,7 @@ void neuron_do_timestep_update(timer_t time) {
     _print_neurons();
 
     // Record any spikes this timestep
-    if (recording_is_channel_enabled(
-            recording_flags, SPIKE_RECORDING_CHANNEL)) {
+    if (recording_is_channel_enabled(recording_flags, SPIKE_RECORDING_CHANNEL)) {
         if (!out_spikes_is_empty()) {
             n_recordings_outstanding += 1;
             out_spikes_record(
