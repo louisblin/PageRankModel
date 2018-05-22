@@ -1,4 +1,5 @@
-#include <neuron/spike_processing.h>
+#include "spike_processing.h"
+#include "neuron.h"
 #include <neuron/population_table/population_table.h>
 #include <neuron/synapse_row.h>
 #include <neuron/synapses.h>
@@ -162,10 +163,15 @@ static inline void _setup_synaptic_dma_write(uint32_t dma_buffer_index) {
 /* CALLBACK FUNCTIONS - cannot be static */
 
 // Called when a multicast packet is received
-void _multicast_packet_received_callback(uint key, uint payload) {
+void _mcpl_packet_received_callback(uint key, uint payload) {
+    neuron_received_packet(key, payload, time);
+}
+
+// Called when a multicast packet is received
+void _mc_packet_received_callback(uint key, uint payload) {
     use(payload);
 
-    log_debug("Received spike %x at %d, DMA Busy = %d", key, time, dma_busy);
+    log_info("Received spike %x at %d, DMA Busy = %d", key, time, dma_busy);
 
     // If there was space to add spike to incoming spike queue
     if (in_spikes_add_spike(key)) {
@@ -272,8 +278,10 @@ bool spike_processing_initialise(
     single_fixed_synapse[2] = 0;
 
     // Set up the callbacks
+    spin1_callback_on(MCPL_PACKET_RECEIVED,
+            _mcpl_packet_received_callback, mc_packet_callback_priority);
     spin1_callback_on(MC_PACKET_RECEIVED,
-            _multicast_packet_received_callback, mc_packet_callback_priority);
+            _mc_packet_received_callback, mc_packet_callback_priority);
     simulation_dma_transfer_done_callback_on(
         DMA_TAG_READ_SYNAPTIC_ROW, _dma_complete_callback);
     spin1_callback_on(USER_EVENT, _user_event_callback, user_event_priority);
