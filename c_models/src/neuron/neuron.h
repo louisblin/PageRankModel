@@ -62,9 +62,8 @@ void neuron_store_neuron_parameters(address_t address);
 //! \brief triggered when a spike is received (MCPL)
 //! \param[in] key the key received in the MC packet
 //! \param[in] payload the payload received in the MC packet
-//! \param[in] time when the packet was received
 //! \return nothing
-void neuron_received_packet(key_t key, payload_t payload, uint32_t time);
+void update_neuron_payload(uint32_t key, REAL payload);
 
 
 #endif // _NEURON_H_

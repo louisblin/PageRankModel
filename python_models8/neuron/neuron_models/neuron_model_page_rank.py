@@ -10,9 +10,12 @@ from enum import Enum
 
 
 class _NEURAL_PARAMETERS(Enum):
-    RANK_INIT = (1, DataType.S1615, 'rk')
-    CURR_RANK_ACC_INIT = (2, DataType.S1615, 'rk')
-    CURR_RANK_COUNT_INIT = (3, DataType.S1615, 'au')
+    INCOMING_EDGES_COUNT = (1, DataType.UINT32, 'count')
+    OUTGOING_EDGES_COUNT = (2, DataType.UINT32, 'count')
+    RANK_INIT = (3, DataType.S1615, 'rk')
+    CURR_RANK_ACC_INIT = (4, DataType.S1615, 'rk')
+    CURR_RANK_COUNT_INIT = (5, DataType.UINT32, 'count')
+    HAS_COMPLETED_ITER_INIT = (6, DataType.UINT32, 'bool')
 
     def __new__(cls, value, data_type, unit):
         obj = object.__new__(cls)
@@ -33,38 +36,58 @@ class _NEURAL_PARAMETERS(Enum):
 
 class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
 
-    def __init__(self, n_neurons, rank_init, curr_rank_acc_init, curr_rank_count_init):
+    def __init__(self, n_neurons,
+                 incoming_edges_count, outgoing_edges_count,
+                 rank_init, curr_rank_acc_init, curr_rank_count_init, has_completed_iter_init):
         AbstractNeuronModel.__init__(self)
         AbstractContainsUnits.__init__(self)
 
         self._n_neurons = n_neurons
 
         # Store any parameters
+        self._incoming_edges_count = self._var_init(incoming_edges_count)
+        self._outgoing_edges_count = self._var_init(outgoing_edges_count)
 
         # Store any state variables
         self._initialize_state_vars([
             ('rank_init', rank_init),
             ('curr_rank_acc_init', curr_rank_acc_init),
             ('curr_rank_count_init', curr_rank_count_init),
+            ('has_completed_iter_init', has_completed_iter_init),
         ])
 
+    def _var_init(self, state_var):
+        return utility_calls.convert_param_to_numpy(state_var, self._n_neurons)
+
     # Getters and setters for the parameters
+    @property
+    def incoming_edges_count(self):
+        return self._incoming_edges_count
+
+    @incoming_edges_count.setter
+    def incoming_edges_count(self, incoming_edges_count):
+        self._incoming_edges_count = self._var_init(incoming_edges_count)
+
+    @property
+    def outgoing_edges_count(self):
+        return self._outgoing_edges_count
+
+    @outgoing_edges_count.setter
+    def outgoing_edges_count(self, outgoing_edges_count):
+        self._outgoing_edges_count = self._var_init(outgoing_edges_count)
 
     # Initializers for the state variables
     def _initialize_state_vars(self, state_vars):
-        def _state_init(state_var):
-            return utility_calls.convert_param_to_numpy(state_var, self._n_neurons)
-
         def _mk_initialize(state_var):
             def initialize(self, val):
-                self[state_var] = _state_init(val)
+                self[state_var] = self._var_init(val)
             return initialize
 
         for name, val in state_vars:
             _state_var = '_{}'.format(name)
             initialize_name = 'initialize_{}'.format(name[:-5])
 
-            setattr(self, _state_var, _state_init(val))
+            setattr(self, _state_var, self._var_init(val))
             setattr(self, initialize_name, _mk_initialize(_state_var))
 
     # Mapping per-neuron parameters (`neuron_t' in C code)
@@ -113,7 +136,7 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
         # TODO: update with the number of CPU cycles taken by the neuron_model_state_update,
         #   neuron_model_get_membrane_voltage and neuron_model_has_spiked functions in the C code
         #   Note: This can be a guess
-        return 80
+        return 20
 
     @overrides(AbstractContainsUnits.get_units)
     def get_units(self, variable):

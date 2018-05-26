@@ -5,16 +5,17 @@
 
 typedef struct neuron_t {
 
-    // TODO: Parameters - make sure these match with the python code,
-    // including the order of the variables when returned by
-    // get_neural_parameters.
+    // Number of edges inbound / leaving that neuron
+    uint32_t incoming_edges_count;
+    uint32_t outgoing_edges_count;
 
     // The current rank of the neuron
     REAL rank;
 
     // Pending neuron update: the accumulated / count of ranks received.
     REAL curr_rank_acc;
-    REAL curr_rank_count;
+    uint32_t curr_rank_count;
+    uint32_t has_completed_iter;
 
 } neuron_t;
 

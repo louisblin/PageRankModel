@@ -22,6 +22,10 @@ ifndef SPIKE_PROCESSING_C
     SPIKE_PROCESSING_C = $(SOURCE_DIR)/neuron/spike_processing.c
 endif
 
+ifndef SYNAPSES_C
+    SYNAPSES_C = $(SOURCE_DIR)/neuron/synapses.c
+endif
+
 # Input type not used for Page Rank, but required for compilation
 INPUT_TYPE_H = $(SOURCE_DIR)/neuron/input_types/input_type_current.h
 

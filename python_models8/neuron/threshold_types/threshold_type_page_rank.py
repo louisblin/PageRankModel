@@ -8,8 +8,6 @@ from enum import Enum
 
 class _THRESHOLD_TYPES(Enum):
 
-    INCOMING_EDGES_COUNT = (1, DataType.UINT32)
-
     def __new__(cls, value, data_type):
         obj = object.__new__(cls)
         obj._value_ = value
@@ -24,24 +22,13 @@ class _THRESHOLD_TYPES(Enum):
 class ThresholdTypePageRank(AbstractThresholdType):
     """ A threshold that is a static value
     """
-    def __init__(self, n_neurons, incoming_edges_count):
+    def __init__(self):
         AbstractThresholdType.__init__(self)
-        self._n_neurons = n_neurons
+        # self._n_neurons = n_neurons
 
         # Parameters
-        self._incoming_edges_count = utility_calls.convert_param_to_numpy(
-            incoming_edges_count, n_neurons)
 
     # Getters and setters for the parameters
-
-    @property
-    def incoming_edges_count(self):
-        return self._incoming_edges_count
-
-    @incoming_edges_count.setter
-    def incoming_edges_count(self, incoming_edges_count):
-        self._incoming_edges_count = utility_calls.convert_param_to_numpy(
-            incoming_edges_count, self._n_neurons)
 
     # Mapping per-neuron parameters (`threshold_type_t' in C code)
 
@@ -59,4 +46,4 @@ class ThresholdTypePageRank(AbstractThresholdType):
         return [item.data_type for item in _THRESHOLD_TYPES]
 
     def get_n_cpu_cycles_per_neuron(self):
-        return 2
+        return 1

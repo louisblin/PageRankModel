@@ -14,6 +14,7 @@
 #include <recording.h>
 #include <debug.h>
 #include <string.h>
+#include <stdfix.h>
 
 // declare spin1_wfi
 void spin1_wfi();
@@ -46,6 +47,9 @@ static bool use_key;
 
 //! The number of neurons on the core
 static uint32_t n_neurons;
+
+//! Have we sent packets during the iteration
+static bool *has_sent_packets;
 
 //! The recording flags
 static uint32_t recording_flags;
@@ -84,32 +88,41 @@ typedef enum parmeters_in_neuron_parameter_data_region {
 } parmeters_in_neuron_parameter_data_region;
 
 
+//!
+static inline void _reset_has_sent_packets() {
+    for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
+        has_sent_packets[neuron_index] = false;
+    }
+}
+
+
+
 //! private method for doing output debug data on the neurons
 static inline void _print_neurons() {
 
 //! only if the models are compiled in debug mode will this method contain these lines.
-#if LOG_LEVEL >= LOG_DEBUG
-    log_debug("-------------------------------------\n");
+//#if LOG_LEVEL >= LOG_DEBUG
+    log_info("-------------------------------------\n");
     for (index_t n = 0; n < n_neurons; n++) {
         neuron_model_print_state_variables(&(neuron_array[n]));
     }
-    log_debug("-------------------------------------\n");
+    log_info("-------------------------------------\n");
     //}
-#endif // LOG_LEVEL >= LOG_DEBUG
+//#endif // LOG_LEVEL >= LOG_DEBUG
 }
 
 //! private method for doing output debug data on the neurons
 static inline void _print_neuron_parameters() {
 
 //! only if the models are compiled in debug mode will this method contain these lines.
-#if LOG_LEVEL >= LOG_DEBUG
-    log_debug("-------------------------------------\n");
+//#if LOG_LEVEL >= LOG_DEBUG
+    log_info("-------------------------------------\n");
     for (index_t n = 0; n < n_neurons; n++) {
         neuron_model_print_parameters(&(neuron_array[n]));
     }
-    log_debug("-------------------------------------\n");
+    log_info("-------------------------------------\n");
     //}
-#endif // LOG_LEVEL >= LOG_DEBUG
+//#endif // LOG_LEVEL >= LOG_DEBUG
 }
 
 //! \brief does the memory copy for the neuron parameters
@@ -234,6 +247,15 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
         }
     }
 
+    if (n_neurons > 0) {
+        has_sent_packets = (bool *) spin1_malloc(sizeof(bool) * n_neurons);
+        if (has_sent_packets == NULL) {
+            log_error("Unable to allocate has_sent_packets - Out of DTCM");
+            return false;
+        }
+        _reset_has_sent_packets();
+    }
+
     // load the data into the allocated DTCM spaces.
     if (!_neuron_load_neuron_parameters(address)){
         return false;
@@ -256,6 +278,7 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
 
     return true;
 }
+
 
 //! \brief stores neuron parameter back into sdram
 //! \param[in] address: the address in sdram to start the store
@@ -295,6 +318,11 @@ void recording_done_callback() {
 //! \param[in] time the timer tick  value currently being executed
 void neuron_do_timestep_update(timer_t time) {
 
+    log_info("\n\n===== TIME STEP = %u =====", time);
+
+    // Track sent packets for each node
+    bool hasSentAllPackets = true;
+
     // Wait a random number of clock cycles
     uint32_t random_backoff_time = tc[T1_COUNT] - random_backoff;
     while (tc[T1_COUNT] > random_backoff_time) {
@@ -315,27 +343,30 @@ void neuron_do_timestep_update(timer_t time) {
 
     // update each neuron individually
     for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
-
         // Get the parameters for this neuron
         neuron_pointer_t         neuron         = &neuron_array[neuron_index];
-        threshold_type_pointer_t threshold_type = &threshold_type_array[neuron_index];
+//        threshold_type_pointer_t threshold_type = &threshold_type_array[neuron_index];
 
         // Voltage is the rank for us
-        state_t rank = neuron_model_get_membrane_voltage(neuron);
-
         // If we should be recording potential, record this neuron parameter
-        voltages->states[neuron_index] = rank;
+        voltages->states[neuron_index] = neuron->rank;
 
         // Get the number of received edges
-        state_t received_count = neuron_model_state_update(UNUSED, UNUSED, UNUSED, neuron);
+        neuron_model_state_update(UNUSED, UNUSED, UNUSED, neuron);
 
         // Determine if a spike should occur
-        bool spike = threshold_type_is_above_threshold(received_count, threshold_type);
+//        bool spike = threshold_type_is_above_threshold(received_count, threshold_type)
+        bool spike = !has_sent_packets[neuron_index];
 
         // If the neuron has spiked (+ always spike at t=0 to initialize simulation)
-        if (spike || time == 0) {
+        if (spike) {
             // Tell the neuron model
             neuron_model_has_spiked(neuron);
+
+            has_sent_packets[neuron_index] = true;
+
+            // Get new rank
+            state_t weighted_rank = neuron_model_get_membrane_voltage(neuron);
 
             // Do any required synapse processing
             synapse_dynamics_process_post_synaptic_event(time, neuron_index);
@@ -343,7 +374,6 @@ void neuron_do_timestep_update(timer_t time) {
             // Record the spike
             out_spikes_set_spike(neuron_index);
 
-            // TODO: figure out how use_key works...
             if (use_key) {
 
                 // Wait until the expected time to send
@@ -354,10 +384,17 @@ void neuron_do_timestep_update(timer_t time) {
 
                 // Send the spike
                 key_t k = key | neuron_index;
-                payload_t p = (payload_t) rank;
 
-                log_info("[t=%04u|#%03d] Sending pkt  %08x=%3.3k", time, neuron_index, k, rank);
-                while (!spin1_send_mc_packet(k, p, WITH_PAYLOAD)) {
+                union payloadSerializer {
+                    state_t asStateT;
+                    REAL asReal;
+                    uint32_t asInt;
+                };
+                union payloadSerializer p = { weighted_rank };
+
+                log_info("          [t=%04u|#%03d] Sending pkt  %08x=%2.4k", time, neuron_index, k,
+                    p.asReal);
+                while (!spin1_send_mc_packet(k, p.asInt, WITH_PAYLOAD)) {
                     spin1_delay_us(1);
                 }
             }
@@ -365,19 +402,46 @@ void neuron_do_timestep_update(timer_t time) {
         } else {
             log_info("The neuron %d has been determined to not spike", neuron_index);
         }
+
+        if (!has_sent_packets[neuron_index]) {
+            hasSentAllPackets = false;
+        }
     }
 
     // Disable interrupts to avoid possible concurrent access
-    uint cpsr = 0;
-    cpsr = spin1_int_disable();
+    uint cpsr = spin1_int_disable();
+
+    // Reset if all to true
+    if (hasSentAllPackets) {
+        bool hasReceivedAllUpdates = true;
+        for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
+            neuron_pointer_t neuron = &neuron_array[neuron_index];
+            if ( !neuron->has_completed_iter ) {
+                hasReceivedAllUpdates = false;
+                break;
+            }
+        }
+
+        if (hasReceivedAllUpdates) {
+            log_info("RESETTING has_sent_packets");
+            _reset_has_sent_packets();
+            // TODO: put this in neuron_model
+            for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
+                neuron_pointer_t neuron = &neuron_array[neuron_index];
+                neuron->rank = neuron->curr_rank_acc;
+                neuron->curr_rank_acc   = 0;
+                neuron->curr_rank_count = 0;
+                neuron->has_completed_iter = 0;
+            }
+        }
+    }
 
     // record neuron state (membrane potential) if needed
     if (recording_is_channel_enabled(recording_flags, V_RECORDING_CHANNEL)) {
         n_recordings_outstanding += 1;
         voltages->time = time;
         recording_record_and_notify(
-            V_RECORDING_CHANNEL, voltages, voltages_size,
-            recording_done_callback);
+            V_RECORDING_CHANNEL, voltages, voltages_size, recording_done_callback);
     }
 
     // record neuron inputs (excitatory) if needed
@@ -406,8 +470,7 @@ void neuron_do_timestep_update(timer_t time) {
     if (recording_is_channel_enabled(recording_flags, SPIKE_RECORDING_CHANNEL)) {
         if (!out_spikes_is_empty()) {
             n_recordings_outstanding += 1;
-            out_spikes_record(
-                SPIKE_RECORDING_CHANNEL, time, recording_done_callback);
+            out_spikes_record(SPIKE_RECORDING_CHANNEL, time, recording_done_callback);
         }
     }
 
@@ -415,13 +478,7 @@ void neuron_do_timestep_update(timer_t time) {
     spin1_mode_restore(cpsr);
 }
 
-void neuron_received_packet(key_t _key, payload_t _payload, uint32_t time) {
-    input_t key = (input_t) _key;
-    input_t payload = (input_t) _payload;
-
-    log_info("[t=%04u|#%03d] Received pkt %08x=%3.3k", time, (0xff & (int) _key), _key, payload);
-
-    // FIXME: use right key to identify receiver
-    neuron_pointer_t neuron = &neuron_array[(index_t) key];
-    neuron_model_state_update(key, payload, UNUSED, neuron);
+void update_neuron_payload(uint32_t neuron_index, REAL payload) {
+    neuron_pointer_t neuron = &neuron_array[neuron_index];
+    neuron_model_state_update(neuron_index, (payload_t) payload, UNUSED, neuron);
 }

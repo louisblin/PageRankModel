@@ -16,12 +16,14 @@ class PageRankBase(AbstractPopulationVertex):
     # Default parameters for this build, used when end user has not entered any
     default_parameters = {
         'incoming_edges_count': 0,
+        'outgoing_edges_count': 0,
     }
 
     none_pynn_default_parameters = {
         'rank_init': 1,
         'curr_rank_acc_init': 0,
-        'curr_rank_count_init': 0
+        'curr_rank_count_init': 0,
+        'has_completed_iter_init': 0,
     }
 
     def __init__(
@@ -35,41 +37,41 @@ class PageRankBase(AbstractPopulationVertex):
             label=AbstractPopulationVertex.none_pynn_default_parameters['label'],
 
             # Model parameters
+            incoming_edges_count=default_parameters['incoming_edges_count'],
+            outgoing_edges_count=default_parameters['outgoing_edges_count'],
 
             # Threshold types parameters
-            incoming_edges_count=default_parameters['incoming_edges_count'],
 
             # Initial values for the state variables; this is not technically done in PyNN
             rank_init=none_pynn_default_parameters['rank_init'],
             curr_rank_acc_init=none_pynn_default_parameters['curr_rank_acc_init'],
-            curr_rank_count_init=none_pynn_default_parameters['curr_rank_count_init']):
+            curr_rank_count_init=none_pynn_default_parameters['curr_rank_count_init'],
+            has_completed_iter_init=none_pynn_default_parameters['has_completed_iter_init']):
 
         neuron_model = NeuronModelPageRank(
-            n_neurons, rank_init, curr_rank_acc_init, curr_rank_count_init)
+                n_neurons,
+                incoming_edges_count, outgoing_edges_count,
+                rank_init, curr_rank_acc_init, curr_rank_count_init, has_completed_iter_init)
 
         synapse_type = SynapseTypeNoOp()
 
         input_type = InputTypeCurrent()
 
-        threshold_type = ThresholdTypePageRank(n_neurons, incoming_edges_count)
+        threshold_type = ThresholdTypePageRank()
 
-        # TODO: create your own additional inputs (change if required).
-        additional_input = None
-
-        # instantiate the sPyNNaker system by initialising
-        #  the AbstractPopulationVertex
+        # instantiate the sPyNNaker system by initialising the AbstractPopulationVertex
         AbstractPopulationVertex.__init__(
             # standard inputs, do not need to change.
             self, n_neurons=n_neurons, label=label,
             spikes_per_second=spikes_per_second,
             ring_buffer_sigma=ring_buffer_sigma,
             incoming_spike_buffer_size=incoming_spike_buffer_size,
-            max_atoms_per_core=(PageRankBase._model_based_max_atoms_per_core),
+            max_atoms_per_core=PageRankBase._model_based_max_atoms_per_core,
 
             # These are the various model types
             neuron_model=neuron_model, input_type=input_type,
             synapse_type=synapse_type, threshold_type=threshold_type,
-            additional_input=additional_input,
+            additional_input=None,
             model_name="PageRank", # name shown in reports
             binary="page_rank.aplx") # c src binary name
 

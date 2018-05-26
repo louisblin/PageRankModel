@@ -21,10 +21,14 @@ class PageRankDataHolder(DataHolder):
             label=AbstractPopulationVertex.none_pynn_default_parameters['label'],
 
             # PageRankBase
+            incoming_edges_count=PageRankBase.default_parameters['incoming_edges_count'],
+            outgoing_edges_count=PageRankBase.default_parameters['outgoing_edges_count'],
             rank_init=PageRankBase.none_pynn_default_parameters['rank_init'],
             curr_rank_acc_init=PageRankBase.none_pynn_default_parameters['curr_rank_acc_init'],
             curr_rank_count_init=PageRankBase.none_pynn_default_parameters['curr_rank_count_init'],
-            incoming_edges_count=PageRankBase.default_parameters['incoming_edges_count']):
+            has_completed_iter_init=PageRankBase.none_pynn_default_parameters[
+                'has_completed_iter_init']
+            ):
         DataHolder.__init__(
             self, {
                 'spikes_per_second': spikes_per_second,
@@ -32,10 +36,12 @@ class PageRankDataHolder(DataHolder):
                 'incoming_spike_buffer_size': incoming_spike_buffer_size,
                 'constraints': constraints,
                 'label': label,
+                'incoming_edges_count': incoming_edges_count,
+                'outgoing_edges_count': outgoing_edges_count,
                 'rank_init': rank_init,
                 'curr_rank_acc_init': curr_rank_acc_init,
                 'curr_rank_count_init': curr_rank_count_init,
-                'incoming_edges_count': incoming_edges_count,
+                'has_completed_iter_init': has_completed_iter_init,
             }
         )
 

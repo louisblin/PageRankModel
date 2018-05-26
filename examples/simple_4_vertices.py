@@ -3,9 +3,7 @@ import sys
 
 import spynnaker8 as p
 
-from python_models8.model_data_holders.page_rank_data_holder import PageRankDataHolder as Page_Rank
-from python_models8.synapse_dynamics.synapse_dynamics_noop import SynapseDynamicsNoOp
-from examples.utils import draw_input_graph, draw_output_graph
+import examples.utils as utils
 
 RANK = 'v'
 
@@ -14,54 +12,52 @@ def run(show_in=False, show_out=False):
     ###############################################################################
     # Simulation parameters
 
-    run_time = 5
-    time_step = 1.0
-    n_neurons = 3
+    n_neurons = 4
+    run_time = 10.
 
-    p.setup(time_step, min_delay=time_step)
+    parameters = dict(
+        n_neurons=n_neurons,
+        run_time=run_time,
+        timestep=1.,
+        time_scale_factor=4
+    )
+    p.setup(**parameters)
 
     ###############################################################################
     # Construct simulation graph
+    # From: https://www.youtube.com/watch?v=P8Kt6Abq_rM
+
+    vertices = list(range(n_neurons))
 
     # Compute links
-    injection_connections = []
-    incoming_edges_count = [0] * n_neurons
-    for src in range(n_neurons):
-        tgt = (src + 1) % n_neurons
-        injection_connections.append((src, tgt))
-        incoming_edges_count[tgt] += 1
+    [A, B, C, D] = vertices
+    edges = [
+        (A, B),
+        (A, C),
+        (B, D),
+        (C, A),
+        (C, B),
+        (C, D),
+        (D, C),
+    ]
 
-    # Vertices
-    pop = p.Population(
-        n_neurons,
-        Page_Rank(incoming_edges_count=incoming_edges_count),
-        label="page_rank"
-    )
-
-    # Edges
-    p.Projection(
-        pop, pop,
-        p.FromListConnector(injection_connections),
-        synapse_type=SynapseDynamicsNoOp()
-    )
-
-    models = [pop]
+    model = utils.create_page_rank_model(p, vertices, edges)
 
     ###############################################################################
     # Run simulation / report
 
     if show_in:
-        draw_input_graph(injection_connections)
+        utils.draw_input_graph(edges)
 
-    for m in models:
-        m.record([RANK])
+    model.record([RANK])
 
     p.run(run_time)
 
     # Graph reporting
-    if show_out:
-        draw_output_graph(models, RANK, run_time)
-    else:
+    utils.draw_output_graph(model, RANK, run_time, show_graph=show_out)
+    # utils.python_page_rank(vertices, edges, show=True)
+
+    if not show_out:
         raw_input('Press any key to finish...')
 
     p.end()

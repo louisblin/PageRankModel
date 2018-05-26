@@ -11,54 +11,65 @@ void neuron_model_set_global_neuron_params(global_neuron_params_pointer_t params
 
 // Triggered when a packet is received
 //   or, when all params are UNUSED, to get the number of inputs received
-state_t neuron_model_state_update(input_t _key, input_t _payload, input_t unused,
+state_t neuron_model_state_update(input_t key, input_t payload, input_t unused,
         neuron_pointer_t neuron) {
     use(unused);
 
     // User wants to get the number of incoming edges received since last spike
-    if (!_key && !_payload) {
+    if (!key && !payload) {
         return neuron->curr_rank_count;
     }
 
+    index_t idx = (index_t) key;
+
+    union payloadDeserializer {
+        uint32_t asInt;
+        REAL asReal;
+    };
+    union payloadDeserializer contrib = { payload };
+
     // User signals a packet has arrived
-    index_t key = (key_t) _key;
-    REAL contrib = (REAL) _payload;
+    REAL prev_rank_acc = neuron->curr_rank_acc;
+    uint32_t prev_rank_count = neuron->curr_rank_count;
 
-    log_debug("neuron_model_state_update: %04x=%04x => %03u=%3.3k", key, contrib, key, contrib);
+    // Saved
+    neuron->curr_rank_acc   += contrib.asReal;
+    neuron->curr_rank_count += 1;
 
-    neuron->curr_rank_acc += contrib;
-    neuron->curr_rank_count += REAL_CONST(1);
+    if ( neuron->curr_rank_count >= neuron->incoming_edges_count ) {
+//        neuron->rank = neuron->curr_rank_acc;
+//        neuron->curr_rank_acc   = 0;
+//        neuron->curr_rank_count = 0;
+        neuron->has_completed_iter = 1;
+        log_info("[idx=%03u] neuron_model_state_update: iteration completed (%2.4k)", idx,
+            neuron->curr_rank_acc);
+    }
 
-    log_debug("curr_rank_acc=%3.3k [%04x]  ||  curr_rank_count=%3.3k [%04x]", neuron->curr_rank_acc,
-            neuron->curr_rank_acc, neuron->curr_rank_count, neuron->curr_rank_count);
+    log_info("[idx=%03u] neuron_model_state_update: %2.4k/%d + %2.4k = %2.4k/%d", idx,
+        prev_rank_acc, prev_rank_count, contrib.asReal, neuron->curr_rank_acc,
+        neuron->curr_rank_count);
 
-    return neuron->rank;
+    return neuron_model_get_membrane_voltage(neuron);
 }
 
 // Membrane voltage is defined as the rank here
 state_t neuron_model_get_membrane_voltage(neuron_pointer_t neuron) {
-    return neuron->rank;
+    return neuron->rank / neuron->outgoing_edges_count;
 }
 
 // Perform operations required to reset the state after a spike
 void neuron_model_has_spiked(neuron_pointer_t neuron) {
-
-    if (neuron->curr_rank_count == 0) {
-        log_info("Neuron spiked without received any packet");
-    } else {
-        neuron->rank = neuron->curr_rank_acc / neuron->curr_rank_count;
-        neuron->curr_rank_acc   = 0;
-        neuron->curr_rank_count = 0;
-    }
+    log_info("Neuron spiked: rank = %2.4k", neuron->rank);
 }
 
 void neuron_model_print_state_variables(restrict neuron_pointer_t neuron) {
-    log_debug("rank             = %11.4k", neuron->rank);
-    log_debug("curr_rank_acc    = %11.4k", neuron->curr_rank_acc);
-    log_debug("curr_rank_count  = %11.4k", neuron->curr_rank_count);
+    log_info("rank            = %4.4k", neuron->rank);
+    log_info("curr_rank_acc   = %4.4k", neuron->curr_rank_acc);
+    log_info("curr_rank_count = %d", neuron->curr_rank_count);
+    log_info("has_completed_iter = %d", neuron->has_completed_iter);
 }
 
 void neuron_model_print_parameters(restrict neuron_pointer_t neuron) {
-    use(neuron);
-    log_debug("*** no parameters ***");
+    log_info("incoming_edges_count = %d", neuron->incoming_edges_count);
+    log_info("outgoing_edges_count = %d", neuron->outgoing_edges_count);
 }

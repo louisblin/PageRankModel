@@ -34,7 +34,8 @@ typedef struct synapse_param_t {
 //! \param[in] pointer to parameters the synapse parameter pointer passed in
 //! \return Nothing
 static inline void synapse_types_shape_input(
-        synapse_param_pointer_t  __attribute__((__unused__)) parameter) {
+        synapse_param_pointer_t parameter) {
+    use(parameter);
 }
 
 
@@ -45,10 +46,11 @@ static inline void synapse_types_shape_input(
 //! \param[in] pointer to parameters the synapse parameters passed in
 //! \param[in] input the input to be added
 //! \return None
-static inline void synapse_types_add_neuron_input(
-        index_t  __attribute__((__unused__)) synapse_type_index,
-        synapse_param_pointer_t  __attribute__((__unused__)) parameter,
-        input_t  __attribute__((__unused__)) input) {
+static inline void synapse_types_add_neuron_input(index_t synapse_type_index,
+        synapse_param_pointer_t parameter, input_t  input) {
+    use(synapse_type_index);
+    use(parameter);
+    use(input);
 }
 
 //! \brief Gets the excitatory input for a given neuron
@@ -73,8 +75,6 @@ static inline input_t synapse_types_get_inhibitory_input(
 //! \return a human readable character representing the synapse type.
 static inline const char *synapse_types_get_type_char(
         index_t  __attribute__((__unused__)) synapse_type_index) {
-
-    log_debug("Did not recognise synapse type %i", synapse_type_index);
     return "?";
 }
 
