@@ -133,8 +133,11 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
 
     @overrides(AbstractNeuronModel.get_n_cpu_cycles_per_neuron)
     def get_n_cpu_cycles_per_neuron(self):
-        # TODO: update with the number of CPU cycles taken by the neuron_model_state_update,
-        #   neuron_model_get_membrane_voltage and neuron_model_has_spiked functions in the C code
+        # Number of CPU cycles taken by
+        #   the neuron_model_state_update,
+        #   neuron_model_get_membrane_voltage,
+        #   neuron_model_has_spiked
+        # functions in the C code
         #   Note: This can be a guess
         return 20
 
