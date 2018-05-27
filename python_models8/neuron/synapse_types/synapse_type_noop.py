@@ -6,15 +6,12 @@ from spynnaker.pyNN.models.neuron.synapse_types import AbstractSynapseType
 
 class SynapseTypeNoOp(AbstractSynapseType, AbstractContainsUnits):
 
-    def __init__(self):
-
-        AbstractSynapseType.__init__(self)
-        AbstractContainsUnits.__init__(self)
-
     def get_n_synapse_type_bits(self):
         return 0
 
     def get_n_synapse_types(self):
+        # Workaround `spynnaker/pyNN/models/neuron/synaptic_manager.py' that needs at least one
+        # synapse_type, although this Page Rank implementation does not need any.
         return 1
 
     def get_synapse_id_by_target(self, target):

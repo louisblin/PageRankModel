@@ -4,17 +4,6 @@
 #include <common/neuron-typedefs.h>
 #include <neuron/synapse_row.h>
 
-// Get the index of the ring buffer for a given timestep, synapse type and
-// neuron index
-static inline index_t synapses_get_ring_buffer_index(
-        uint32_t simuation_timestep, uint32_t synapse_type_index,
-        uint32_t neuron_index){
-    return (((simuation_timestep & SYNAPSE_DELAY_MASK)
-             << SYNAPSE_TYPE_INDEX_BITS)
-            | (synapse_type_index << SYNAPSE_INDEX_BITS)
-            | neuron_index);
-}
-
 // Get the index of the ring buffer for a given timestep and combined
 // synapse type and neuron index (as stored in a synapse row)
 static inline index_t synapses_get_ring_buffer_index_combined(
@@ -41,8 +30,7 @@ static inline input_t synapses_convert_weight_to_input(
 static inline void synapses_print_weight(
         weight_t weight, uint32_t left_shift) {
     if (weight != 0) {
-        io_printf(IO_BUF, "%12.6k", synapses_convert_weight_to_input(
-            weight, left_shift));
+        io_printf(IO_BUF, "%12.6k", synapses_convert_weight_to_input(weight, left_shift));
     } else {
         io_printf(IO_BUF, "      ");
     }
@@ -57,19 +45,12 @@ bool synapses_initialise(
 void synapses_do_timestep_update(timer_t time);
 
 //! \brief process a synaptic row
-//! \param[in] time: the simulated time
 //! \param[in] row: the synaptic row in question
-//! \param[in] write: bool saying if to write this back to SDRAM
-//! \param[in] process_id: ??????????????????
+//! \param[in] payload: the payload to forward
 //! \return bool if successful or not
-bool synapses_process_synaptic_row(
-    uint32_t time, synaptic_row_t row, bool write, uint32_t process_id);
+bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, REAL payload);
 
-bool synapses_process_synaptic_row_page_rank(
-    uint32_t time, synaptic_row_t row, REAL payload, bool write, uint32_t process_id);
-
-//! \brief returns the number of times the synapses have saturated their
-//!        weights.
+//! \brief returns the number of times the synapses have saturated their weights.
 //! \return the number of times the synapses have saturated.
 uint32_t synapses_get_saturation_count();
 

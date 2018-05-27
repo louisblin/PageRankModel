@@ -15,11 +15,7 @@ state_t neuron_model_state_update(input_t key, input_t payload, input_t unused,
         neuron_pointer_t neuron) {
     use(unused);
 
-    // User wants to get the number of incoming edges received since last spike
-    if (!key && !payload) {
-        return neuron->curr_rank_count;
-    }
-
+    // Decode key / payload
     index_t idx = (index_t) key;
 
     union payloadDeserializer {

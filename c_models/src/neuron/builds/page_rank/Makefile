@@ -7,8 +7,8 @@ BUILD_DIR = build/
 NEURON_MODEL = $(EXTRA_SRC_DIR)/neuron/models/neuron_model_page_rank.c
 NEURON_MODEL_H = $(EXTRA_SRC_DIR)/neuron/models/neuron_model_page_rank.h
 
-# When to send a spike
-THRESHOLD_TYPE_H = $(EXTRA_SRC_DIR)/neuron/threshold_types/threshold_type_page_rank.h
+# No-op threshold type
+THRESHOLD_TYPE_H = $(EXTRA_SRC_DIR)/neuron/threshold_types/threshold_type_noop.h
 
 # No-op synapse shaping type
 SYNAPSE_TYPE_H = $(EXTRA_SRC_DIR)/neuron/synapse_types/synapse_types_noop.h

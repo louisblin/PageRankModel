@@ -4,7 +4,7 @@ from spynnaker.pyNN.models.neuron import AbstractPopulationVertex
 from spynnaker.pyNN.models.neuron.input_types import InputTypeCurrent
 from python_models8.neuron.neuron_models.neuron_model_page_rank import NeuronModelPageRank
 from python_models8.neuron.synapse_types.synapse_type_noop import SynapseTypeNoOp
-from python_models8.neuron.threshold_types.threshold_type_page_rank import ThresholdTypePageRank
+from python_models8.neuron.threshold_types.threshold_type_noop import ThresholdTypeNoOp
 
 
 class PageRankBase(AbstractPopulationVertex):
@@ -53,11 +53,11 @@ class PageRankBase(AbstractPopulationVertex):
                 incoming_edges_count, outgoing_edges_count,
                 rank_init, curr_rank_acc_init, curr_rank_count_init, has_completed_iter_init)
 
-        synapse_type = SynapseTypeNoOp()
-
         input_type = InputTypeCurrent()
 
-        threshold_type = ThresholdTypePageRank()
+        synapse_type = SynapseTypeNoOp()
+
+        threshold_type = ThresholdTypeNoOp()
 
         # instantiate the sPyNNaker system by initialising the AbstractPopulationVertex
         AbstractPopulationVertex.__init__(

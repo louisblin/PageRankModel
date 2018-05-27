@@ -6,8 +6,6 @@
 
 #include "neuron.h"
 #include <neuron/models/neuron_model.h>
-#include <neuron/input_types/input_type.h>
-#include <neuron/threshold_types/threshold_type.h>
 #include <neuron/synapse_types/synapse_types.h>
 #include <neuron/plasticity/synapse_dynamics.h>
 #include <common/out_spikes.h>
@@ -20,20 +18,12 @@
 void spin1_wfi();
 
 #define SPIKE_RECORDING_CHANNEL 0
-#define V_RECORDING_CHANNEL 1
-#define GSYN_EXCITATORY_RECORDING_CHANNEL 2
-#define GSYN_INHIBITORY_RECORDING_CHANNEL 3
+#define RANK_RECORDING_CHANNEL 1
 
 #define UNUSED 0
 
 //! Array of neuron states
 static neuron_pointer_t neuron_array;
-
-//! Input states array
-static input_type_pointer_t input_type_array;
-
-//! Threshold states array
-static threshold_type_pointer_t threshold_type_array;
 
 //! Global parameters for the neurons
 static global_neuron_params_pointer_t global_parameters;
@@ -48,7 +38,7 @@ static bool use_key;
 //! The number of neurons on the core
 static uint32_t n_neurons;
 
-//! Have we sent packets during the iteration
+//! Keeps track of which neuron have sent their packet during the iteration
 static bool *has_sent_packets;
 
 //! The recording flags
@@ -58,17 +48,12 @@ static uint32_t recording_flags;
 static synapse_param_t *neuron_synapse_shaping_params;
 
 //! storage for neuron state with timestamp
-static timed_state_t *voltages;
-uint32_t voltages_size;
+static timed_state_t *ranks;
+uint32_t ranks_size;
 
-//! storage for neuron input with timestamp
-static timed_input_t *inputs_excitatory;
-static timed_input_t *inputs_inhibitory;
-uint32_t input_size;
-
-//! The number of clock ticks to back off before starting the timer, in an
-//! attempt to avoid overloading the network
-static uint32_t random_backoff;
+//! The number of clock ticks to back off before starting the timer, in an attempt to avoid
+//!   overloading the network
+static uint32_t random_back_off;
 
 //! The number of clock ticks between sending each spike
 static uint32_t time_between_spikes;
@@ -81,20 +66,11 @@ static uint32_t n_recordings_outstanding = 0;
 
 //! parameters that reside in the neuron_parameter_data_region in human
 //! readable form
-typedef enum parmeters_in_neuron_parameter_data_region {
-    RANDOM_BACKOFF, TIME_BETWEEN_SPIKES, HAS_KEY, TRANSMISSION_KEY,
+typedef enum parameters_in_neuron_parameter_data_region {
+    RANDOM_BACK_OFF, TIME_BETWEEN_SPIKES, HAS_KEY, TRANSMISSION_KEY,
     N_NEURONS_TO_SIMULATE, INCOMING_SPIKE_BUFFER_SIZE,
     START_OF_GLOBAL_PARAMETERS,
-} parmeters_in_neuron_parameter_data_region;
-
-
-//!
-static inline void _reset_has_sent_packets() {
-    for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
-        has_sent_packets[neuron_index] = false;
-    }
-}
-
+} parameters_in_neuron_parameter_data_region;
 
 
 //! private method for doing output debug data on the neurons
@@ -125,6 +101,14 @@ static inline void _print_neuron_parameters() {
 //#endif // LOG_LEVEL >= LOG_DEBUG
 }
 
+//! \brief sets to false the has_sent_packets array at the start of a new iteration
+static inline void _reset_has_sent_packets() {
+    log_info("RESETTING has_sent_packets");
+    for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
+        has_sent_packets[neuron_index] = false;
+    }
+}
+
 //! \brief does the memory copy for the neuron parameters
 //! \param[in] address: the address where the neuron parameters are stored
 //! in SDRAM
@@ -138,14 +122,6 @@ bool _neuron_load_neuron_parameters(address_t address){
 
     log_info("loading neuron local parameters");
     memcpy(neuron_array, &address[next], n_neurons * sizeof(neuron_t));
-    next += (n_neurons * sizeof(neuron_t)) / 4;
-
-    log_info("loading input type parameters");
-    memcpy(input_type_array, &address[next], n_neurons * sizeof(input_type_t));
-    next += (n_neurons * sizeof(input_type_t)) / 4;
-
-    log_info("loading threshold type parameters");
-    memcpy(threshold_type_array, &address[next], n_neurons * sizeof(threshold_type_t));
 
     neuron_model_set_global_neuron_params(global_parameters);
 
@@ -153,8 +129,7 @@ bool _neuron_load_neuron_parameters(address_t address){
 }
 
 //! \brief interface for reloading neuron parameters as needed
-//! \param[in] address: the address where the neuron parameters are stored
-//! in SDRAM
+//! \param[in] address: the address where the neuron parameters are stored in SDRAM
 //! \return bool which is true if the reload of the neuron parameters was
 //! successful or not
 bool neuron_reload_neuron_parameters(address_t address) {
@@ -169,19 +144,19 @@ bool neuron_reload_neuron_parameters(address_t address) {
 }
 
 //! \brief Set up the neuron models
-//! \param[in] address the absolute address in SDRAM for the start of the
-//!            NEURON_PARAMS data region in SDRAM
-//! \param[in] recording_flags_param the recordings parameters
-//!            (contains which regions are active and how big they are)
+//! \param[in] address the absolute address in SDRAM for the start of the NEURON_PARAMS data region
+//!            in SDRAM
+//! \param[in] recording_flags_param the recordings parameters (contains which regions are active
+//!            and how big they are)
 //! \param[out] n_neurons_value The number of neurons this model is to emulate
-//! \return True is the initialisation was successful, otherwise False
+//! \return true if the initialisation was successful, otherwise false
 bool neuron_initialise(address_t address, uint32_t recording_flags_param,
         uint32_t *n_neurons_value, uint32_t *incoming_spike_buffer_size) {
     log_info("neuron_initialise: starting");
 
-    random_backoff = address[RANDOM_BACKOFF];
+    random_back_off     = address[RANDOM_BACK_OFF];
     time_between_spikes = address[TIME_BETWEEN_SPIKES] * sv->cpu_clk;
-    log_info("\t back off = %u, time between spikes %u", random_backoff, time_between_spikes);
+    log_info("\t back off = %u, time between spikes %u", random_back_off, time_between_spikes);
 
     // Check if there is a key to use
     use_key = address[HAS_KEY];
@@ -189,11 +164,10 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
     // Read the spike key to use
     key = address[TRANSMISSION_KEY];
 
-    // output if this model is expecting to transmit
-    if (!use_key){
+    // log if this model is expecting to transmit
+    if (!use_key) {
         log_info("\tThis model is not expecting to transmit as it has no key");
-    }
-    else{
+    } else {
         log_info("\tThis model is expected to transmit with key = %08x", key);
     }
 
@@ -205,12 +179,10 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
     *incoming_spike_buffer_size = address[INCOMING_SPIKE_BUFFER_SIZE];
 
     // log message for debug purposes
-    log_info(
-        "\t neurons = %u, spike buffer size = %u, params size = %u, input type size = %u,"
-        " threshold size = %u", n_neurons, *incoming_spike_buffer_size, sizeof(neuron_t),
-        sizeof(input_type_t), sizeof(threshold_type_t));
+    log_info("\t neurons = %u, spike buffer size = %u, params size = %u",
+        n_neurons, *incoming_spike_buffer_size, sizeof(neuron_t));
 
-    // allocate DTCM for the global parameter details
+    // Allocate DTCM for the global parameter details
     if (sizeof(global_neuron_params_t) > 0) {
         global_parameters = (global_neuron_params_t *) spin1_malloc(sizeof(global_neuron_params_t));
         if (global_parameters == NULL) {
@@ -228,25 +200,7 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
         }
     }
 
-    // Allocate DTCM for input type array and copy block of data
-    if (sizeof(input_type_t) != 0) {
-        input_type_array = (input_type_t *) spin1_malloc(n_neurons * sizeof(input_type_t));
-        if (input_type_array == NULL) {
-            log_error("Unable to allocate input type array - Out of DTCM");
-            return false;
-        }
-    }
-
-    // Allocate DTCM for threshold type array and copy block of data
-    if (sizeof(threshold_type_t) != 0) {
-        threshold_type_array = (threshold_type_t *) spin1_malloc(
-            n_neurons * sizeof(threshold_type_t));
-        if (threshold_type_array == NULL) {
-            log_error("Unable to allocate threshold type array - Out of DTCM");
-            return false;
-        }
-    }
-
+    // Allocate DTCM for has_sent_packet
     if (n_neurons > 0) {
         has_sent_packets = (bool *) spin1_malloc(sizeof(bool) * n_neurons);
         if (has_sent_packets == NULL) {
@@ -256,7 +210,7 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
         _reset_has_sent_packets();
     }
 
-    // load the data into the allocated DTCM spaces.
+    // Load the data into the allocated DTCM spaces.
     if (!_neuron_load_neuron_parameters(address)){
         return false;
     }
@@ -268,11 +222,8 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
 
     recording_flags = recording_flags_param;
 
-    voltages_size = sizeof(uint32_t) + sizeof(state_t) * n_neurons;
-    voltages = (timed_state_t *) spin1_malloc(voltages_size);
-    input_size = sizeof(uint32_t) + sizeof(input_struct_t) * n_neurons;
-    inputs_excitatory = (timed_input_t *) spin1_malloc(input_size);
-    inputs_inhibitory = (timed_input_t *) spin1_malloc(input_size);
+    ranks_size = sizeof(uint32_t) + sizeof(state_t) * n_neurons;
+    ranks = (timed_state_t *) spin1_malloc(ranks_size);
 
     _print_neuron_parameters();
 
@@ -286,35 +237,25 @@ void neuron_store_neuron_parameters(address_t address){
 
     uint32_t next = START_OF_GLOBAL_PARAMETERS;
 
-
     log_info("writing neuron global parameters");
     memcpy(&address[next], global_parameters, sizeof(global_neuron_params_t));
     next += sizeof(global_neuron_params_t) / 4;
 
     log_info("writing neuron local parameters");
     memcpy(&address[next], neuron_array, n_neurons * sizeof(neuron_t));
-    next += (n_neurons * sizeof(neuron_t)) / 4;
-
-    log_info("writing input type parameters");
-    memcpy(&address[next], input_type_array, n_neurons * sizeof(input_type_t));
-    next += (n_neurons * sizeof(input_type_t)) / 4;
-
-    log_info("writing threshold type parameters");
-    memcpy(&address[next], threshold_type_array, n_neurons * sizeof(threshold_type_t));
 }
 
 //! \setter for the internal input buffers
 //! \param[in] input_buffers_value the new input buffers
-void neuron_set_neuron_synapse_shaping_params(synapse_param_t *neuron_synapse_shaping_params_value){
-    neuron_synapse_shaping_params = neuron_synapse_shaping_params_value;
+void neuron_set_neuron_synapse_shaping_params(synapse_param_t *value){
+    neuron_synapse_shaping_params = value;
 }
 
 void recording_done_callback() {
     n_recordings_outstanding -= 1;
 }
 
-//! \executes all the updates to neural parameters when a given timer period
-//! has occurred.
+//! \executes all the updates to neural parameters when a given timer period has occurred.
 //! \param[in] time the timer tick  value currently being executed
 void neuron_do_timestep_update(timer_t time) {
 
@@ -324,16 +265,15 @@ void neuron_do_timestep_update(timer_t time) {
     bool hasSentAllPackets = true;
 
     // Wait a random number of clock cycles
-    uint32_t random_backoff_time = tc[T1_COUNT] - random_backoff;
-    while (tc[T1_COUNT] > random_backoff_time) {
+    uint32_t random_back_off_time = tc[T1_COUNT] - random_back_off;
+    while (tc[T1_COUNT] > random_back_off_time) {
         // Do Nothing
     }
 
     // Set the next expected time to wait for between spike sending
     expected_time = tc[T1_COUNT] - time_between_spikes;
 
-    // Wait until recordings have completed, to ensure the recording space
-    // can be re-written
+    // Wait until recordings have completed, to ensure the recording space can be re-written
     while (n_recordings_outstanding > 0) {
         spin1_wfi();
     }
@@ -344,18 +284,12 @@ void neuron_do_timestep_update(timer_t time) {
     // update each neuron individually
     for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
         // Get the parameters for this neuron
-        neuron_pointer_t         neuron         = &neuron_array[neuron_index];
-//        threshold_type_pointer_t threshold_type = &threshold_type_array[neuron_index];
+        neuron_pointer_t neuron = &neuron_array[neuron_index];
 
-        // Voltage is the rank for us
-        // If we should be recording potential, record this neuron parameter
-        voltages->states[neuron_index] = neuron->rank;
-
-        // Get the number of received edges
-        neuron_model_state_update(UNUSED, UNUSED, UNUSED, neuron);
+        // Record the rank at the beginning of the iteration
+        ranks->states[neuron_index] = neuron->rank;
 
         // Determine if a spike should occur
-//        bool spike = threshold_type_is_above_threshold(received_count, threshold_type)
         bool spike = !has_sent_packets[neuron_index];
 
         // If the neuron has spiked (+ always spike at t=0 to initialize simulation)
@@ -398,7 +332,6 @@ void neuron_do_timestep_update(timer_t time) {
                     spin1_delay_us(1);
                 }
             }
-
         } else {
             log_info("The neuron %d has been determined to not spike", neuron_index);
         }
@@ -423,7 +356,6 @@ void neuron_do_timestep_update(timer_t time) {
         }
 
         if (hasReceivedAllUpdates) {
-            log_info("RESETTING has_sent_packets");
             _reset_has_sent_packets();
             // TODO: put this in neuron_model
             for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
@@ -437,29 +369,11 @@ void neuron_do_timestep_update(timer_t time) {
     }
 
     // record neuron state (membrane potential) if needed
-    if (recording_is_channel_enabled(recording_flags, V_RECORDING_CHANNEL)) {
+    if (recording_is_channel_enabled(recording_flags, RANK_RECORDING_CHANNEL)) {
         n_recordings_outstanding += 1;
-        voltages->time = time;
+        ranks->time = time;
         recording_record_and_notify(
-            V_RECORDING_CHANNEL, voltages, voltages_size, recording_done_callback);
-    }
-
-    // record neuron inputs (excitatory) if needed
-    if (recording_is_channel_enabled(recording_flags, GSYN_EXCITATORY_RECORDING_CHANNEL)) {
-        n_recordings_outstanding += 1;
-        inputs_excitatory->time = time;
-        recording_record_and_notify(
-            GSYN_EXCITATORY_RECORDING_CHANNEL, inputs_excitatory, input_size,
-            recording_done_callback);
-    }
-
-    // record neuron inputs (inhibitory) if needed
-    if (recording_is_channel_enabled(recording_flags, GSYN_INHIBITORY_RECORDING_CHANNEL)) {
-        n_recordings_outstanding += 1;
-        inputs_inhibitory->time = time;
-        recording_record_and_notify(
-            GSYN_INHIBITORY_RECORDING_CHANNEL, inputs_inhibitory, input_size,
-            recording_done_callback);
+            RANK_RECORDING_CHANNEL, ranks, ranks_size, recording_done_callback);
     }
 
     // do logging stuff if required
