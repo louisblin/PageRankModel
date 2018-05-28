@@ -1,11 +1,7 @@
 import argparse
 import sys
 
-import spynnaker8 as p
-
-import examples.utils as utils
-
-RANK = 'v'
+from examples.page_rank import PageRankSimulation
 
 
 def run(show_in=False, show_out=False):
@@ -13,24 +9,22 @@ def run(show_in=False, show_out=False):
     # Simulation parameters
 
     n_neurons = 4
-    run_time = 10.
+    run_time = 25.
 
     parameters = dict(
-        n_neurons=n_neurons,
-        run_time=run_time,
         timestep=1.,
         time_scale_factor=4
     )
-    p.setup(**parameters)
 
     ###############################################################################
     # Construct simulation graph
     # From: https://www.youtube.com/watch?v=P8Kt6Abq_rM
 
-    vertices = list(range(n_neurons))
+    nodes = list(range(n_neurons))
+    labels = ['A', 'B', 'C', 'D']
 
     # Compute links
-    [A, B, C, D] = vertices
+    [A, B, C, D] = nodes
     edges = [
         (A, B),
         (A, C),
@@ -41,26 +35,13 @@ def run(show_in=False, show_out=False):
         (D, C),
     ]
 
-    model = utils.create_page_rank_model(p, vertices, edges)
-
     ###############################################################################
     # Run simulation / report
 
-    if show_in:
-        utils.draw_input_graph(edges)
-
-    model.record([RANK])
-
-    p.run(run_time)
-
-    # Graph reporting
-    utils.draw_output_graph(model, RANK, run_time, show_graph=show_out)
-    # utils.python_page_rank(vertices, edges, show=True)
-
-    if not show_out:
-        raw_input('Press any key to finish...')
-
-    p.end()
+    with PageRankSimulation(run_time, nodes, edges, parameters=parameters, labels=labels) as sim:
+        sim.draw_input_graph(show_graph=show_in)
+        sim.run(verify=True)
+        sim.draw_output_graph(show_graph=show_out, pause=not show_out)
 
 
 if __name__ == '__main__':
