@@ -6,39 +6,24 @@ from examples.page_rank import PageRankSimulation
 
 def run(show_in=False, show_out=False):
     ###############################################################################
-    # Simulation parameters
-
-    n_neurons = 4
-    run_time = 25.
-
-    parameters = dict(
-        timestep=1.,
-        time_scale_factor=4
-    )
-
-    ###############################################################################
     # Construct simulation graph
     # From: https://www.youtube.com/watch?v=P8Kt6Abq_rM
 
-    nodes = list(range(n_neurons))
-    labels = ['A', 'B', 'C', 'D']
-
-    # Compute links
-    [A, B, C, D] = nodes
     edges = [
-        (A, B),
-        (A, C),
-        (B, D),
-        (C, A),
-        (C, B),
-        (C, D),
-        (D, C),
+        ('A', 'B'),
+        ('A', 'C'),
+        ('B', 'D'),
+        ('C', 'A'),
+        ('C', 'B'),
+        ('C', 'D'),
+        ('D', 'C'),
     ]
 
     ###############################################################################
     # Run simulation / report
 
-    with PageRankSimulation(run_time, nodes, edges, parameters=parameters, labels=labels) as sim:
+    run_time = 25.
+    with PageRankSimulation(run_time, edges) as sim:
         sim.draw_input_graph(show_graph=show_in)
         sim.run(verify=True)
         sim.draw_output_graph(show_graph=show_out, pause=not show_out)
@@ -46,7 +31,7 @@ def run(show_in=False, show_out=False):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sample page rank graph with 4 vertices')
-    parser.add_argument('--show-in', action='store_true', help='Display input directed graph.')
-    parser.add_argument('--show-out', action='store_true', help='Display output ranks curves.')
+    parser.add_argument('--show-in', action='store_true', help='Display directed graph input.')
+    parser.add_argument('--show-out', action='store_true', help='Display ranks curves output.')
 
     sys.exit(run(**vars(parser.parse_args())))

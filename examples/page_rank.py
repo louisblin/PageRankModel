@@ -12,11 +12,13 @@ from python_models8.model_data_holders.page_rank_data_holder import PageRankData
 from python_models8.synapse_dynamics.synapse_dynamics_noop import SynapseDynamicsNoOp
 
 RANK = 'v'
-# TODO: investigate SpiNNaker fixed-point arithmetic
-FLOAT_PRECISION = 3
-GUI_TIMEOUT = 3000
 NX_NODE_SIZE = 350
+FLOAT_PRECISION = 3  # TODO: investigate SpiNNaker fixed-point arithmetic
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
+DEFAULT_SPYNNAKER_PARAMS = {
+    'timestep': 1.,
+    'time_scale_factor': 4
+}
 
 
 #
@@ -25,19 +27,21 @@ ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
 
 class PageRankSimulation:
 
-    def __init__(self, run_time, vertices, edges, parameters=None, labels=None, damping=1):
+    def __init__(self, run_time, edges, labels=None, parameters=None, damping=1):
         # Simulation parameters
-        self._run_time = run_time
-        self._vertices = vertices
-        self._edges = edges
-        self._parameters = parameters
-        self._labels = labels
+        self._run_time     = run_time
+        self._edges        = edges
+        self._labels       = labels or self._gen_labels(self._edges)
+        self._sim_vertices = self._gen_sim_vertices(self._labels)
+        self._sim_edges    = self._gen_sim_edges(self._edges, self._labels, self._sim_vertices)
+        self._parameters   = DEFAULT_SPYNNAKER_PARAMS
+        self._parameters.update(parameters or {})
         # TODO: add support for Damping factor
-        self._damping = damping
+        self._damping      = damping
 
         # Simulation state variables
         self._model = None
-        self._sim_ranks  = None
+        self._sim_ranks = None
         self._input_graph = None
 
         # Numpy printing with some precision and no scientific notation
@@ -47,11 +51,27 @@ class PageRankSimulation:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        p.end()
+        if exc_type is None:
+            p.end()
+            return
+        # else: exception is cascaded...
 
     #
     # Private functions, internal helpers
     #
+
+    @staticmethod
+    def _gen_labels(edges):
+        return map(str, set([s for s, _ in edges] + [t for _, t in edges]))
+
+    @staticmethod
+    def _gen_sim_vertices(labels):
+        return list(range(len(labels)))
+
+    @staticmethod
+    def _gen_sim_edges(edges, labels, sim_vertices):
+        labels_to_ids = dict(zip(labels, sim_vertices))
+        return [(labels_to_ids[src], labels_to_ids[tgt]) for src, tgt in edges]
 
     @staticmethod
     def _node_formatter(name):
@@ -59,8 +79,7 @@ class PageRankSimulation:
 
     @staticmethod
     def _float_formatter(number):
-        template = "%.{}f".format(FLOAT_PRECISION)
-        return template % number
+        return ("%.{}f".format(FLOAT_PRECISION)) % number
 
     def _print_ranks(self, ranks):
         """Pretty prints a table of ranks values
@@ -68,7 +87,7 @@ class PageRankSimulation:
         :param ranks: dict of name-indexed rows of values, or list of a single row of values
         :return: None
         """
-        lbl = self._labels or map(self._node_formatter, self._vertices)
+        lbl = map(self._node_formatter, self._labels)
 
         # If multiple rows, indexed by row name
         if isinstance(ranks, dict):
@@ -108,10 +127,10 @@ class PageRankSimulation:
         :return: p.Population, the neural model to compute Page Rank
         """
         # Pre-processing, compute inbound / outbound edges for each node
-        n_neurons = len(self._vertices)
+        n_neurons = len(self._sim_vertices)
         outgoing_edges_count = [0] * n_neurons
         incoming_edges_count = [0] * n_neurons
-        for src, tgt in self._edges:
+        for src, tgt in self._sim_edges:
             outgoing_edges_count[src] += 1
             incoming_edges_count[tgt] += 1
 
@@ -119,7 +138,7 @@ class PageRankSimulation:
         pop = p.Population(
             n_neurons,
             Page_Rank(
-                rank_init= 1./n_neurons,
+                rank_init=1./n_neurons,
                 incoming_edges_count=incoming_edges_count,
                 outgoing_edges_count=outgoing_edges_count
             ), label="page_rank"
@@ -128,7 +147,7 @@ class PageRankSimulation:
         # Edges
         p.Projection(
             pop, pop,
-            p.FromListConnector(self._edges),
+            p.FromListConnector(self._sim_edges),
             synapse_type=SynapseDynamicsNoOp()
         )
 
@@ -148,11 +167,11 @@ class PageRankSimulation:
         # Get last row of the ranks computed in the simulation
         computed_ranks = self._extract_sim_ranks()[-1]
         ranks_dict = nx.pagerank(self._input_graph, self._damping)
-        expected_ranks = np.array([ranks_dict[v] for v in self._vertices])
+        expected_ranks = np.array([ranks_dict[v] for v in self._labels])
 
-        close = np.allclose(computed_ranks, expected_ranks, atol=10**(-FLOAT_PRECISION))
+        is_correct = np.allclose(computed_ranks, expected_ranks, atol=10**(-FLOAT_PRECISION))
 
-        if close:
+        if is_correct:
             print("CORRECT Page Rank results.")
             self._print_ranks(computed_ranks)
         else:
@@ -162,7 +181,7 @@ class PageRankSimulation:
                 'Expected': expected_ranks
             })
 
-        return close
+        return is_correct
 
     #
     # Exposed functions
@@ -192,11 +211,6 @@ class PageRankSimulation:
         :param show_graph: whether to display the graph, default is False
         :return: None
         """
-        # Labels in the legend
-        labels = None
-        if self._labels:
-            labels = dict(zip(self._vertices, self._labels))
-
         # Graph structure
         G = nx.Graph().to_directed()
         G.add_edges_from(self._edges)
@@ -205,7 +219,7 @@ class PageRankSimulation:
         pos = nx.layout.spring_layout(G)
         nx.draw_networkx_nodes(G, pos, node_size=NX_NODE_SIZE, node_color='red')
         nx.draw_networkx_edges(G, pos, arrowstyle='->')
-        nx.draw_networkx_labels(G, pos, labels=labels, font_color='white', font_weight='bold')
+        nx.draw_networkx_labels(G, pos, font_color='white', font_weight='bold')
         self_loops = G.nodes_with_selfloops()
         nx.draw_networkx_nodes(self_loops, pos, node_size=NX_NODE_SIZE, node_color='black')
 
@@ -235,7 +249,7 @@ class PageRankSimulation:
         self._check_sim_ran()
 
         ranks = self._extract_sim_ranks()
-        time_step = (float(self._run_time ) / len(ranks)) if len(ranks) != 0 else 0
+        time_step = (float(self._run_time) / len(ranks)) if len(ranks) != 0 else 0
 
         if show_graph:
             print("Displaying output graph. "
