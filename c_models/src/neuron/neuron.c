@@ -349,7 +349,7 @@ void neuron_do_timestep_update(timer_t time) {
         bool hasReceivedAllUpdates = true;
         for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
             neuron_pointer_t neuron = &neuron_array[neuron_index];
-            if ( !neuron->has_completed_iter ) {
+            if ( !neuron->has_completed_iter) {
                 hasReceivedAllUpdates = false;
                 break;
             }

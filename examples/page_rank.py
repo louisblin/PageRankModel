@@ -1,11 +1,12 @@
 import os
+import sys
+from contextlib import contextmanager
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-from prettytable import PrettyTable
-
 import spynnaker8 as p
+from prettytable import PrettyTable
 from pyNN.utility.plotting import Figure, Panel
 
 from python_models8.model_data_holders.page_rank_data_holder import PageRankDataHolder as Page_Rank
@@ -71,7 +72,10 @@ class PageRankSimulation:
     @staticmethod
     def _gen_sim_edges(edges, labels, sim_vertices):
         labels_to_ids = dict(zip(labels, sim_vertices))
-        return [(labels_to_ids[src], labels_to_ids[tgt]) for src, tgt in edges]
+        try:
+            return [(labels_to_ids[src], labels_to_ids[tgt]) for src, tgt in edges]
+        except KeyError:
+            raise ValueError("Some 'edges' use nodes not defined in 'labels'")
 
     @staticmethod
     def _node_formatter(name):
@@ -81,24 +85,18 @@ class PageRankSimulation:
     def _float_formatter(number):
         return ("%.{}f".format(FLOAT_PRECISION)) % number
 
-    def _print_ranks(self, ranks):
+    def _get_ranks_string(self, ranks):
         """Pretty prints a table of ranks values
 
         :param ranks: dict of name-indexed rows of values, or list of a single row of values
         :return: None
         """
-        lbl = map(self._node_formatter, self._labels)
+        # Multiple rows, indexed by row name
+        table = PrettyTable([''] + map(self._node_formatter, self._labels))
+        for name, row in ranks.items():
+            table.add_row([name] + map(self._float_formatter, row))
 
-        # If multiple rows, indexed by row name
-        if isinstance(ranks, dict):
-            table = PrettyTable([''] + lbl)
-            for name, row in ranks.items():
-                table.add_row([name] + map(self._float_formatter, row))
-        # One line
-        else:
-            table = PrettyTable(lbl)
-            table.add_row(map(self._float_formatter, ranks))
-        print(table)
+        return table.get_string()
 
     def _check_sim_ran(self):
         """Raises an error is the simulation was not ran.
@@ -153,7 +151,7 @@ class PageRankSimulation:
 
         return pop
 
-    def _verify_sim(self):
+    def _verify_sim(self, get_string=False):
         """Verifies simulation results correctness.
 
         Checks the ranks results from the simulation match those given by a Python implementation of
@@ -164,33 +162,46 @@ class PageRankSimulation:
         if self._input_graph is None:
             self.draw_input_graph(show_graph=False)
 
+        msg = ""
+
         # Get last row of the ranks computed in the simulation
         computed_ranks = self._extract_sim_ranks()[-1]
-        ranks_dict = nx.pagerank(self._input_graph, self._damping)
-        expected_ranks = np.array([ranks_dict[v] for v in self._labels])
+        try:
+            ranks_dict = nx.pagerank(self._input_graph, self._damping, weight=None)
+            expected_ranks = np.array([ranks_dict[v] for v in self._labels])
 
-        is_correct = np.allclose(computed_ranks, expected_ranks, atol=10**(-FLOAT_PRECISION))
+            is_correct = np.allclose(computed_ranks, expected_ranks, atol=10**(-FLOAT_PRECISION))
+        except nx.PowerIterationFailedConvergence:
+            is_correct = True
+            msg += "WARNING Page Rank python got PowerIterationFailedConvergence.\n"
 
         if is_correct:
-            print("CORRECT Page Rank results.")
-            self._print_ranks(computed_ranks)
+            msg += "CORRECT Page Rank results.\n" \
+                + self._get_ranks_string({
+                    'Computed': computed_ranks
+                })
         else:
-            print("INCORRECT Page Rank results.")
-            self._print_ranks({
-                'Computed': computed_ranks,
-                'Expected': expected_ranks
-            })
+            msg += "INCORRECT Page Rank results.\n" \
+                + self._get_ranks_string({
+                    'Computed': computed_ranks,
+                    'Expected': expected_ranks
+                })
 
+        if get_string:
+            return is_correct, msg
+
+        print(msg)
         return is_correct
 
     #
     # Exposed functions
     #
 
-    def run(self, verify=False):
+    def run(self, verify=False, get_string=False):
         """Runs the simulation.
 
         :param verify: check the results with a Page Rank python implementation.
+        :param get_string: get the table to results from verification
         :return: bool, correctness of the simulation results
         """
         # Setup simulation
@@ -202,7 +213,7 @@ class PageRankSimulation:
         p.run(self._run_time)
 
         if verify:
-            return self._verify_sim()
+            return self._verify_sim(get_string)
         return True
 
     def draw_input_graph(self, show_graph=False):
@@ -211,6 +222,9 @@ class PageRankSimulation:
         :param show_graph: whether to display the graph, default is False
         :return: None
         """
+        # Clear plot
+        plt.clf()
+
         # Graph structure
         G = nx.Graph().to_directed()
         G.add_edges_from(self._edges)
@@ -252,6 +266,9 @@ class PageRankSimulation:
         time_step = (float(self._run_time) / len(ranks)) if len(ranks) != 0 else 0
 
         if show_graph:
+            # Clear plot
+            plt.clf()
+
             print("Displaying output graph. "
                   "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
             panel = Panel(
@@ -270,3 +287,15 @@ class PageRankSimulation:
 
         if pause:
             raw_input('Press any key to finish...')
+
+
+@contextmanager
+def silence_stdout():
+    new_target = open(os.devnull, "w")
+    old_stdout, sys.stdout = sys.stdout, new_target
+    old_stderr, sys.stderr = sys.stderr, new_target
+    try:
+        yield new_target
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr

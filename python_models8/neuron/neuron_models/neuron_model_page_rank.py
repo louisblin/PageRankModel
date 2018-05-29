@@ -139,7 +139,7 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
         #   neuron_model_has_spiked
         # functions in the C code
         #   Note: This can be a guess
-        return 20
+        return 40
 
     @overrides(AbstractContainsUnits.get_units)
     def get_units(self, variable):

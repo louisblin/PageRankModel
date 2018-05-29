@@ -3,6 +3,8 @@ import sys
 
 from examples.page_rank import PageRankSimulation
 
+RUN_TIME = 25.
+
 
 def run(show_in=False, show_out=False):
     ###############################################################################
@@ -22,8 +24,7 @@ def run(show_in=False, show_out=False):
     ###############################################################################
     # Run simulation / report
 
-    run_time = 25.
-    with PageRankSimulation(run_time, edges) as sim:
+    with PageRankSimulation(RUN_TIME, edges) as sim:
         sim.draw_input_graph(show_graph=show_in)
         sim.run(verify=True)
         sim.draw_output_graph(show_graph=show_out, pause=not show_out)

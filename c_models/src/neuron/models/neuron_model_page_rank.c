@@ -32,6 +32,10 @@ state_t neuron_model_state_update(input_t key, input_t payload, input_t unused,
     neuron->curr_rank_acc   += contrib.asReal;
     neuron->curr_rank_count += 1;
 
+    log_info("[idx=%03u] neuron_model_state_update: %2.4k/%d + %2.4k = %2.4k/%d [exp=%d]", idx,
+        prev_rank_acc, prev_rank_count, contrib.asReal, neuron->curr_rank_acc,
+        neuron->curr_rank_count, neuron->incoming_edges_count);
+
     if ( neuron->curr_rank_count >= neuron->incoming_edges_count ) {
 //        neuron->rank = neuron->curr_rank_acc;
 //        neuron->curr_rank_acc   = 0;
@@ -41,21 +45,26 @@ state_t neuron_model_state_update(input_t key, input_t payload, input_t unused,
             neuron->curr_rank_acc);
     }
 
-    log_info("[idx=%03u] neuron_model_state_update: %2.4k/%d + %2.4k = %2.4k/%d", idx,
-        prev_rank_acc, prev_rank_count, contrib.asReal, neuron->curr_rank_acc,
-        neuron->curr_rank_count);
-
     return neuron_model_get_membrane_voltage(neuron);
 }
 
 // Membrane voltage is defined as the rank here
 state_t neuron_model_get_membrane_voltage(neuron_pointer_t neuron) {
+    // Check we don't divide by 0
+    if (neuron->outgoing_edges_count == 0) {
+        return neuron->rank;
+    }
     return neuron->rank / neuron->outgoing_edges_count;
 }
 
 // Perform operations required to reset the state after a spike
 void neuron_model_has_spiked(neuron_pointer_t neuron) {
     log_info("Neuron spiked: rank = %2.4k", neuron->rank);
+
+    // If not expected to receive any packets, iteration is finished for the node
+    if (neuron->incoming_edges_count == 0) {
+        neuron->has_completed_iter = 1;
+    }
 }
 
 void neuron_model_print_state_variables(restrict neuron_pointer_t neuron) {

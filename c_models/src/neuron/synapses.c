@@ -110,13 +110,8 @@ bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, REAL payload) {
         uint32_t combined_synapse_neuron_index = synapse_row_sparse_type_index(synaptic_word);
 
         // TODO: handle underflow
-        bool send_update = payload > REAL_CONST(0.0);
-
-        log_info("[%s] Neuron idx=%d receives payload = %3.3k", (send_update ? "SEND" : "SKIP"),
-            combined_synapse_neuron_index, payload);
-        if (send_update) {
-            update_neuron_payload(combined_synapse_neuron_index, payload);
-        }
+        log_info("Neuron idx=%d receives payload = %3.3k", combined_synapse_neuron_index, payload);
+        update_neuron_payload(combined_synapse_neuron_index, payload);
     }
     return true;
 }
