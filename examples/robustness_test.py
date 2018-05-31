@@ -21,16 +21,20 @@ def _mk_rd_node(node_count):
 
 
 def _mk_graph(node_count, edge_count):
+    # Under these constraints we can comply with the requirements below
     assert node_count < edge_count < node_count**2, \
         "Need node_count=%d < edge_count=%d < %d " % (node_count, edge_count, node_count**2)
 
     edges = []
+
     # Ensures no dangling nodes
     for i in range(node_count):
         edges.append((_mk_label(i), _mk_rd_node(node_count)))
+
     for _ in range(node_count, edge_count):
         while True:
             edge = (_mk_rd_node(node_count), _mk_rd_node(node_count))
+            # Ensures no double edges
             if edge not in edges:
                 edges.append(edge)
                 break

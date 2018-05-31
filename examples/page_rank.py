@@ -7,21 +7,33 @@ import networkx as nx
 import numpy as np
 import spynnaker8 as p
 from prettytable import PrettyTable
-from pyNN.utility.plotting import Figure, Panel
 
 from python_models8.model_data_holders.page_rank_data_holder import PageRankDataHolder as Page_Rank
+from python_models8.neuron.neuron_models.neuron_model_page_rank import convert_rank
 from python_models8.synapse_dynamics.synapse_dynamics_noop import SynapseDynamicsNoOp
-from python_models8.neuron.neuron_models.neuron_model_page_rank import _NEURAL_PARAMETERS, \
-    convert_rank
 
 RANK = 'v'
 NX_NODE_SIZE = 350
-FLOAT_PRECISION = 5  # TODO: investigate SpiNNaker fixed-point arithmetic
+FLOAT_PRECISION = 5
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
 DEFAULT_SPYNNAKER_PARAMS = {
     'timestep': 1.,
     'time_scale_factor': 4
 }
+
+
+def check_sim_ran(func):
+    """Raises an error is the simulation was not ran.
+
+    State variable `self._model' serves as a proxy for determining if .start(...) was called.
+
+    :return: None
+    """
+    def wrapper(self, *args, **kwargs):
+        if self._model is None:
+            raise RuntimeError('You first need to .start(...) the simulation.')
+        return func(self, *args, **kwargs)
+    return wrapper
 
 
 class PageRankSimulation:
@@ -96,27 +108,15 @@ class PageRankSimulation:
 
         return table.get_string()
 
-    def _check_sim_ran(self):
-        """Raises an error is the simulation was not ran.
-
-        State variable `self._model' serves as a proxy for determining if .start(...) was called.
-
-        :return: None
-        """
-        if self._model is None:
-            raise RuntimeError('You first need to .start(...) the simulation.')
-
+    @check_sim_ran
     def _extract_sim_ranks(self):
         """Extracts the rank computed during the simulation.
 
         :return: np.array, ranks
         """
-        self._check_sim_ran()
-
         if self._sim_ranks is None:
-            ufract_ranks = np.array(self._model.get_data(RANK).segments[0].filter(name=RANK)[0])
-            self._sim_ranks = np.vectorize(convert_rank, otypes=[np.float])(ufract_ranks)
-            # print('>>> DATA OUT\n{}'.format(self._sim_ranks))
+            raw_ranks = np.array(self._model.get_data(RANK).segments[0].filter(name=RANK)[0])
+            self._sim_ranks = np.vectorize(convert_rank, otypes=[np.float])(raw_ranks)
         return self._sim_ranks
 
     def _create_page_rank_model(self):
@@ -154,7 +154,6 @@ class PageRankSimulation:
     def _compute_page_rank(self, find_iter=False):
         ranks, iter = pagerank(self._input_graph, self._damping, tol=10**(-FLOAT_PRECISION),
                                ordering=self._labels)
-
         if find_iter:
             return ranks, iter
         return ranks
@@ -258,6 +257,7 @@ class PageRankSimulation:
             plt.title('Black nodes are self-looping', fontsize=8)
             plt.show()
 
+    @check_sim_ran
     def draw_output_graph(self, show_graph=True, pause=False):
         """Displays the computed rank over time.
 
@@ -269,28 +269,26 @@ class PageRankSimulation:
         :param pause: whether to pause the simulation after showing results, default is False
         :return: None
         """
-        self._check_sim_ran()
-
         ranks = self._extract_sim_ranks()
         time_step = (float(self._run_time) / len(ranks)) if len(ranks) != 0 else 0
 
         if show_graph:
             print("Displaying output graph. "
                   "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
-            # plt.clf()
-            panel = Panel(
-                ranks,
-                ylabel="Rank", yticks=True,
-                xlabel="Time (ms)", xticks=True, xlim=(0, self._run_time - time_step)
-            )
-            f = Figure(panel, title="Rank over time", annotations=ANNOTATION)
+            plt.clf()
 
-            # Override default legend
-            texts = f.fig.get_axes()[0].legend_.get_texts()
-            # texts = plt.gca().legend_.get_texts()
-            labels = self._labels or []
-            for t, label in zip(texts, labels):
-                t.set_text(self._node_formatter(label))
+            ranks = ranks.swapaxes(0, 1)
+            labels = self._labels or list(range(len(ranks)))
+            for lbl, r in zip(labels, ranks):
+                plt.plot(r, label=self._node_formatter(lbl))
+            plt.xlim = (0, self._run_time - time_step)
+            plt.legend()
+            plt.xticks()
+            plt.yticks()
+            plt.xlabel('Time (ms)')
+            plt.ylabel('Rank')
+            plt.suptitle("Rank over time")
+            plt.title(ANNOTATION, fontsize=6)
             plt.show()
 
         if pause:
@@ -299,6 +297,7 @@ class PageRankSimulation:
 #
 # Utility functions
 #
+
 
 @contextmanager
 def silence_stdout():
