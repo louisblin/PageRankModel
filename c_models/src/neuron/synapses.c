@@ -88,7 +88,7 @@ inline void synapses_do_timestep_update(timer_t time) {
 
 //! \brief processes incoming packets by forwarding them to their neuron.
 //!        Each event could cause up to 256 distinct neuron update
-bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, REAL payload) {
+bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, spike_t payload) {
 
     _print_synaptic_row(row);
 
@@ -110,7 +110,7 @@ bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, REAL payload) {
         uint32_t combined_synapse_neuron_index = synapse_row_sparse_type_index(synaptic_word);
 
         // TODO: handle underflow
-        log_info("Neuron idx=%d receives payload = %3.3k", combined_synapse_neuron_index, payload);
+        log_debug("Neuron idx=%d receives payload = 0x%08x", combined_synapse_neuron_index, payload);
         update_neuron_payload(combined_synapse_neuron_index, payload);
     }
     return true;

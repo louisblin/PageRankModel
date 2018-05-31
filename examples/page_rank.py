@@ -11,20 +11,18 @@ from pyNN.utility.plotting import Figure, Panel
 
 from python_models8.model_data_holders.page_rank_data_holder import PageRankDataHolder as Page_Rank
 from python_models8.synapse_dynamics.synapse_dynamics_noop import SynapseDynamicsNoOp
+from python_models8.neuron.neuron_models.neuron_model_page_rank import _NEURAL_PARAMETERS, \
+    convert_rank
 
 RANK = 'v'
 NX_NODE_SIZE = 350
-FLOAT_PRECISION = 3  # TODO: investigate SpiNNaker fixed-point arithmetic
+FLOAT_PRECISION = 5  # TODO: investigate SpiNNaker fixed-point arithmetic
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
 DEFAULT_SPYNNAKER_PARAMS = {
     'timestep': 1.,
     'time_scale_factor': 4
 }
 
-
-#
-# Exposed functions
-#
 
 class PageRankSimulation:
 
@@ -116,7 +114,9 @@ class PageRankSimulation:
         self._check_sim_ran()
 
         if self._sim_ranks is None:
-            self._sim_ranks = self._model.get_data(RANK).segments[0].filter(name=RANK)[0]
+            ufract_ranks = np.array(self._model.get_data(RANK).segments[0].filter(name=RANK)[0])
+            self._sim_ranks = np.vectorize(convert_rank, otypes=[np.float])(ufract_ranks)
+            # print('>>> DATA OUT\n{}'.format(self._sim_ranks))
         return self._sim_ranks
 
     def _create_page_rank_model(self):
@@ -151,7 +151,15 @@ class PageRankSimulation:
 
         return pop
 
-    def _verify_sim(self, get_string=False):
+    def _compute_page_rank(self, find_iter=False):
+        ranks, iter = pagerank(self._input_graph, self._damping, tol=10**(-FLOAT_PRECISION),
+                               ordering=self._labels)
+
+        if find_iter:
+            return ranks, iter
+        return ranks
+
+    def _verify_sim(self, get_string=False, find_iter=False):
         """Verifies simulation results correctness.
 
         Checks the ranks results from the simulation match those given by a Python implementation of
@@ -166,14 +174,15 @@ class PageRankSimulation:
 
         # Get last row of the ranks computed in the simulation
         computed_ranks = self._extract_sim_ranks()[-1]
-        try:
-            ranks_dict = nx.pagerank(self._input_graph, self._damping, weight=None)
-            expected_ranks = np.array([ranks_dict[v] for v in self._labels])
 
-            is_correct = np.allclose(computed_ranks, expected_ranks, atol=10**(-FLOAT_PRECISION))
-        except nx.PowerIterationFailedConvergence:
-            is_correct = True
-            msg += "WARNING Page Rank python got PowerIterationFailedConvergence.\n"
+        res = self._compute_page_rank(find_iter=find_iter)
+        if find_iter:
+            expected_ranks, iter = res
+            msg += "Convergence to 10e-%d reached after #%d iterations.\n" % (FLOAT_PRECISION, iter)
+        else:
+            expected_ranks = res
+
+        is_correct = np.allclose(computed_ranks, expected_ranks, atol=10**(-FLOAT_PRECISION))
 
         if is_correct:
             msg += "CORRECT Page Rank results.\n" \
@@ -197,11 +206,11 @@ class PageRankSimulation:
     # Exposed functions
     #
 
-    def run(self, verify=False, get_string=False):
+    def run(self, verify=False, **kwargs):
         """Runs the simulation.
 
         :param verify: check the results with a Page Rank python implementation.
-        :param get_string: get the table to results from verification
+        :param kwargs: passed to _verify_sim
         :return: bool, correctness of the simulation results
         """
         # Setup simulation
@@ -213,7 +222,7 @@ class PageRankSimulation:
         p.run(self._run_time)
 
         if verify:
-            return self._verify_sim(get_string)
+            return self._verify_sim(**kwargs)
         return True
 
     def draw_input_graph(self, show_graph=False):
@@ -222,6 +231,8 @@ class PageRankSimulation:
         :param show_graph: whether to display the graph, default is False
         :return: None
         """
+        print("Displaying input graph. "
+              "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
         # Clear plot
         plt.clf()
 
@@ -242,8 +253,6 @@ class PageRankSimulation:
 
         # Show graph
         if show_graph:
-            print("Displaying input graph. "
-                  "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
             plt.gca().set_axis_off()
             plt.suptitle('Input graph for Page Rank')
             plt.title('Black nodes are self-looping', fontsize=8)
@@ -266,20 +275,19 @@ class PageRankSimulation:
         time_step = (float(self._run_time) / len(ranks)) if len(ranks) != 0 else 0
 
         if show_graph:
-            # Clear plot
-            plt.clf()
-
             print("Displaying output graph. "
                   "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
+            # plt.clf()
             panel = Panel(
                 ranks,
                 ylabel="Rank", yticks=True,
                 xlabel="Time (ms)", xticks=True, xlim=(0, self._run_time - time_step)
             )
-            Figure(panel, title="Rank over time", annotations=ANNOTATION)
+            f = Figure(panel, title="Rank over time", annotations=ANNOTATION)
 
             # Override default legend
-            texts = plt.gca().legend_.get_texts()
+            texts = f.fig.get_axes()[0].legend_.get_texts()
+            # texts = plt.gca().legend_.get_texts()
             labels = self._labels or []
             for t, label in zip(texts, labels):
                 t.set_text(self._node_formatter(label))
@@ -288,14 +296,63 @@ class PageRankSimulation:
         if pause:
             raw_input('Press any key to finish...')
 
+#
+# Utility functions
+#
 
 @contextmanager
 def silence_stdout():
     new_target = open(os.devnull, "w")
-    old_stdout, sys.stdout = sys.stdout, new_target
+    # old_stdout, sys.stdout = sys.stdout, new_target
     old_stderr, sys.stderr = sys.stderr, new_target
     try:
         yield new_target
     finally:
-        sys.stdout = old_stdout
+        # sys.stdout = old_stdout
         sys.stderr = old_stderr
+
+
+def pagerank(G, alpha=0.85, max_iter=100, tol=1.0e-6, ordering=None):
+    """Return the PageRank of the nodes in the graph.
+
+    Adapted to return the number of iterations necessary to compute the Page Rank
+
+    Source
+    ------
+    github.com/networkx/networkx/blob/master/networkx/algorithms/link_analysis/pagerank_alg.py
+
+    """
+    from examples.fixed_point import FXfamily
+
+    FixedPoint32 = FXfamily(n_bits=32)
+    def _mk_fp(n):
+        return FixedPoint32(n)
+
+    alpha = _mk_fp(alpha)
+
+    # Create a copy in (right) stochastic form
+    W = nx.stochastic_graph(G, weight=None)
+    N = W.number_of_nodes()
+
+    # Choose fixed starting vector if not given
+    x = dict.fromkeys(W, _mk_fp(1. / N))
+    p = dict.fromkeys(W, _mk_fp(1. / N))
+
+    # power iteration: make up to max_iter iterations
+    for iter in range(max_iter):
+        # print(np.array([np.float(v) for _, v in sorted(x.items())]))
+        xlast = x
+        x = dict.fromkeys(xlast.keys(), _mk_fp(0))
+        for n in x:
+            # this matrix multiply looks odd because it is doing a left multiply x^T=xlast^T*W
+            for nbr in W[n]:
+                x[nbr] += alpha * xlast[n] * _mk_fp(W[n][nbr][None])
+            if alpha != 1:
+                x[n] += (_mk_fp(1.0) - alpha) * p.get(n, 0)
+        # check convergence, l1 norm
+        err = sum([abs(x[n] - xlast[n]) for n in x])
+        if err < N * tol:
+            if ordering:
+                x = np.array([np.float(x[v]) for v in ordering])
+            return x, iter
+    raise nx.PowerIterationFailedConvergence(max_iter)

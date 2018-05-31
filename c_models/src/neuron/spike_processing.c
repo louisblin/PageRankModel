@@ -99,8 +99,7 @@ static inline void _do_direct_row(address_t row_address) {
     log_debug("_do_direct_row: row_address[0]=%u", ((uint32_t) row_address[0]));
 
     single_fixed_synapse[3] = (uint32_t) row_address[0];
-    REAL payload = (REAL) spike_pkt_payload;
-    synapses_process_synaptic_row_page_rank(single_fixed_synapse, payload);
+    synapses_process_synaptic_row_page_rank(single_fixed_synapse, spike_pkt_payload);
 }
 
 static inline void _setup_synaptic_dma_read() {
@@ -132,7 +131,7 @@ static inline void _setup_synaptic_dma_read() {
         while (!setup_done && _get_key_payload()) {
             spin1_mode_restore(cpsr);
             log_debug("Checking for row for spike %08x=%3.3k", spike_pkt_key,
-                (REAL) spike_pkt_payload);
+                (UFRACT) spike_pkt_payload);
 
             // Decode spike to get address of destination synaptic row
             if (population_table_get_first_address(
@@ -169,7 +168,7 @@ static inline void _setup_synaptic_dma_read() {
 // Called when a multicast packet is received
 // pre-condition: packet
 void _mcpl_pkt_received_callback(uint key, uint payload) {
-    log_info("[t=%04u|#%03d] Received pkt %08x=%3.3k", time, (0xff & key), key, (REAL) payload);
+    log_info("%6s[t=%04u|#%03d] Received pkt 0x%08x=0x%08x", "", time, (0xff & key), key, payload);
 
     // If there was space to add spike to incoming spike queue
     // Note: assuming second add cannot fail as buffer size is a multiple of 2 x sizeof(uint32_t)
@@ -217,14 +216,14 @@ void _dma_complete_callback(uint unused, uint tag) {
 
         // Are there any more incoming spikes from the same pre-synaptic neuron?
         subsequent_spikes = in_spikes_is_next_spike_equal(current_buffer->originating_spike_key);
-        REAL payload = (REAL) current_buffer->originating_spike_payload;
+        spike_t payload = current_buffer->originating_spike_payload;
 
-        log_debug("synapses_process_synaptic_row(%d, 0x%08x, %3.3k, %x, %x)", time,
-            current_buffer->row, payload, !subsequent_spikes, current_buffer_index);
+        log_debug("synapses_process_synaptic_row_page_rank(%d, 0x%08x, 0x%08x)", time,
+            current_buffer->row, payload);
 
         // Process packet
         if (!synapses_process_synaptic_row_page_rank(current_buffer->row, payload)) {
-            log_error("Error processing spike 0x%.8x=%3.3k for local=0x%.8x",
+            log_error("Error processing spike 0x%08x=0x%08x for local=0x%.8x",
                 current_buffer->originating_spike_key, payload, current_buffer->row);
 
             // Print out the row for debugging

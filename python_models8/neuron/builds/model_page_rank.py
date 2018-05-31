@@ -20,7 +20,7 @@ class PageRankBase(AbstractPopulationVertex):
     }
 
     none_pynn_default_parameters = {
-        'rank_init': 1,
+        'rank_init': 0,
         'curr_rank_acc_init': 0,
         'curr_rank_count_init': 0,
         'has_completed_iter_init': 0,

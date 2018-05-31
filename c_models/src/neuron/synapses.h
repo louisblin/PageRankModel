@@ -48,7 +48,7 @@ void synapses_do_timestep_update(timer_t time);
 //! \param[in] row: the synaptic row in question
 //! \param[in] payload: the payload to forward
 //! \return bool if successful or not
-bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, REAL payload);
+bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, spike_t payload);
 
 //! \brief returns the number of times the synapses have saturated their weights.
 //! \return the number of times the synapses have saturated.

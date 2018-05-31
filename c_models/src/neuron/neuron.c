@@ -5,22 +5,20 @@
  */
 
 #include "neuron.h"
-#include <neuron/models/neuron_model.h>
+#include "models/neuron_model_page_rank.h"
 #include <neuron/synapse_types/synapse_types.h>
 #include <neuron/plasticity/synapse_dynamics.h>
 #include <common/out_spikes.h>
+#include <common/maths-util.h>
 #include <recording.h>
 #include <debug.h>
 #include <string.h>
-#include <stdfix.h>
 
 // declare spin1_wfi
 void spin1_wfi();
 
 #define SPIKE_RECORDING_CHANNEL 0
 #define RANK_RECORDING_CHANNEL 1
-
-#define UNUSED 0
 
 //! Array of neuron states
 static neuron_pointer_t neuron_array;
@@ -287,20 +285,19 @@ void neuron_do_timestep_update(timer_t time) {
         neuron_pointer_t neuron = &neuron_array[neuron_index];
 
         // Record the rank at the beginning of the iteration
-        ranks->states[neuron_index] = neuron->rank;
+        ranks->states[neuron_index] = neuron_model_get_rank_as_real(neuron);
 
         // Determine if a spike should occur
         bool spike = !has_sent_packets[neuron_index];
 
-        // If the neuron has spiked (+ always spike at t=0 to initialize simulation)
         if (spike) {
             // Tell the neuron model
-            neuron_model_has_spiked(neuron);
+            neuron_model_will_send_pkt(neuron);
 
             has_sent_packets[neuron_index] = true;
 
             // Get new rank
-            state_t weighted_rank = neuron_model_get_membrane_voltage(neuron);
+            payload_t broadcast_rank = neuron_model_get_broadcast_rank(neuron);
 
             // Do any required synapse processing
             synapse_dynamics_process_post_synaptic_event(time, neuron_index);
@@ -318,17 +315,9 @@ void neuron_do_timestep_update(timer_t time) {
 
                 // Send the spike
                 key_t k = key | neuron_index;
-
-                union payloadSerializer {
-                    state_t asStateT;
-                    REAL asReal;
-                    uint32_t asInt;
-                };
-                union payloadSerializer p = { weighted_rank };
-
-                log_info("          [t=%04u|#%03d] Sending pkt  %08x=%2.4k", time, neuron_index, k,
-                    p.asReal);
-                while (!spin1_send_mc_packet(k, p.asInt, WITH_PAYLOAD)) {
+                log_info("%16s[t=%04u|#%03d] Sending pkt  0x%08x=0x%08x", "", time, neuron_index, k,
+                    broadcast_rank);
+                while (!spin1_send_mc_packet(k, broadcast_rank, WITH_PAYLOAD)) {
                     spin1_delay_us(1);
                 }
             }
@@ -349,7 +338,7 @@ void neuron_do_timestep_update(timer_t time) {
         bool hasReceivedAllUpdates = true;
         for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
             neuron_pointer_t neuron = &neuron_array[neuron_index];
-            if ( !neuron->has_completed_iter) {
+            if ( !neuron_model_has_finished_iteration(neuron) ) {
                 hasReceivedAllUpdates = false;
                 break;
             }
@@ -357,14 +346,11 @@ void neuron_do_timestep_update(timer_t time) {
 
         if (hasReceivedAllUpdates) {
             _reset_has_sent_packets();
-            // TODO: put this in neuron_model
             for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
                 neuron_pointer_t neuron = &neuron_array[neuron_index];
-                neuron->rank = neuron->curr_rank_acc;
-                neuron->curr_rank_acc   = 0;
-                neuron->curr_rank_count = 0;
-                neuron->has_completed_iter = 0;
+                neuron_model_iteration_did_finish(neuron);
             }
+            _print_neurons();
         }
     }
 
@@ -378,7 +364,6 @@ void neuron_do_timestep_update(timer_t time) {
 
     // do logging stuff if required
     out_spikes_print();
-    _print_neurons();
 
     // Record any spikes this timestep
     if (recording_is_channel_enabled(recording_flags, SPIKE_RECORDING_CHANNEL)) {
@@ -392,7 +377,7 @@ void neuron_do_timestep_update(timer_t time) {
     spin1_mode_restore(cpsr);
 }
 
-void update_neuron_payload(uint32_t neuron_index, REAL payload) {
+void update_neuron_payload(uint32_t neuron_index, spike_t payload) {
     neuron_pointer_t neuron = &neuron_array[neuron_index];
-    neuron_model_state_update(neuron_index, (payload_t) payload, UNUSED, neuron);
+    neuron_model_receive_packet(neuron_index, payload, neuron);
 }
