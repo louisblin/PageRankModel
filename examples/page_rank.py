@@ -65,10 +65,8 @@ class PageRankSimulation:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None:
-            p.end()
-            return
-        # else: exception is cascaded...
+        # exception is cascaded if there is one...
+        p.end()
 
     #
     # Private functions, internal helpers
@@ -348,7 +346,6 @@ def pagerank(G, alpha=0.85, max_iter=100, tol=1.0e-6, ordering=None):
 
     # power iteration: make up to max_iter iterations
     for iter in range(max_iter):
-        # print(np.array([np.float(v) for _, v in sorted(x.items())]))
         xlast = x
         x = dict.fromkeys(xlast.keys(), to_fp(0))
         for n in x:
