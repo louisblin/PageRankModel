@@ -39,6 +39,8 @@ def check_sim_ran(func):
 class PageRankSimulation:
 
     def __init__(self, run_time, edges, labels=None, parameters=None, damping=1):
+        self._validate_graph_structure(edges, labels)
+
         # Simulation parameters
         self._run_time     = run_time
         self._edges        = edges
@@ -71,6 +73,18 @@ class PageRankSimulation:
     # Private functions, internal helpers
     #
 
+    def _validate_graph_structure(self, edges, labels):
+        # Ensure to duplicate edges
+        size_diff = len(edges) - len(set(edges))
+        if size_diff != 0:
+            raise ValueError("graph structure error - %d duplicate(s) found." % size_diff)
+
+        # Ensure all nodes connected (no dangling nodes)
+        if labels:
+            size_diff = len(labels) - len(self._gen_labels(edges))
+            if size_diff != 0:
+                raise ValueError("#labels don't match #edges by %d labels." % size_diff)
+
     @staticmethod
     def _gen_labels(edges):
         return map(str, set([s for s, _ in edges] + [t for _, t in edges]))
@@ -82,10 +96,7 @@ class PageRankSimulation:
     @staticmethod
     def _gen_sim_edges(edges, labels, sim_vertices):
         labels_to_ids = dict(zip(labels, sim_vertices))
-        try:
-            return [(labels_to_ids[src], labels_to_ids[tgt]) for src, tgt in edges]
-        except KeyError:
-            raise ValueError("Some 'edges' use nodes not defined in 'labels'")
+        return [(labels_to_ids[src], labels_to_ids[tgt]) for src, tgt in edges]
 
     @staticmethod
     def _node_formatter(name):
