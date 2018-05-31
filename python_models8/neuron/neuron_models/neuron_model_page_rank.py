@@ -1,3 +1,4 @@
+import numpy as np
 from decimal import Decimal
 from enum import Enum
 
@@ -38,7 +39,11 @@ class _NEURAL_PARAMETERS(Enum):
 def convert_rank(n):
     # Rank (voltage originally was stored as a DataType.S1615)
     scale = Decimal(_NEURAL_PARAMETERS.RANK_INIT.data_type.scale / DataType.S1615.scale)
-    return Decimal(n) / scale
+    n = np.float(Decimal(n) / scale)
+    # Handle erroneous conversion of non-existing sign bit in UFRACT
+    if n < 0:
+        n = 1 + n
+    return n
 
 
 class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):

@@ -8,7 +8,7 @@ from examples.page_rank import PageRankSimulation, silence_stdout
 
 RUN_TIME = 39.
 PARAMETERS = {
-    'time_scale_factor': 4
+    'time_scale_factor': 5
 }
 
 
