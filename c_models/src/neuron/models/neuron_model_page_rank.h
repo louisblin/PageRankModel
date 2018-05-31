@@ -4,6 +4,8 @@
 #include <neuron/models/neuron_model.h>
 #include <common/maths-util.h>
 
+#define K(n) (n >> 17)
+
 typedef struct neuron_t {
 
     // Number of edges inbound / leaving that neuron

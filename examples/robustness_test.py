@@ -6,7 +6,7 @@ import tqdm
 
 from examples.page_rank import PageRankSimulation, silence_stdout
 
-RUN_TIME = 91.
+RUN_TIME = 39.
 PARAMETERS = {
     'time_scale_factor': 4
 }
@@ -22,7 +22,7 @@ def _mk_rd_node(node_count):
 
 def _mk_graph(node_count, edge_count):
     # Under these constraints we can comply with the requirements below
-    assert node_count < edge_count < node_count**2, \
+    assert node_count <= edge_count <= node_count**2, \
         "Need node_count=%d < edge_count=%d < %d " % (node_count, edge_count, node_count**2)
 
     edges = []
@@ -41,7 +41,7 @@ def _mk_graph(node_count, edge_count):
     return edges
 
 
-def _mk_sim_run(node_count, edge_count, show_incorrect):
+def _mk_sim_run(node_count, edge_count, show_incorrect, show_out):
     ###############################################################################
     # Create random Page Rank graphs
     labels = map(_mk_label, list(range(node_count)))
@@ -54,15 +54,16 @@ def _mk_sim_run(node_count, edge_count, show_incorrect):
             is_correct, msg = sim.run(verify=True, get_string=True, find_iter=True)
         if not is_correct:
             sim.draw_input_graph(show_graph=show_incorrect)
+        sim.draw_output_graph(show_graph=show_out)
         return is_correct, msg
 
 
-def run(runs=None, node_count=None, edge_count=None, show_incorrect=False):
+def run(runs=None, node_count=None, edge_count=None, show_incorrect=False, show_out=False):
     errors = 0
     for _ in tqdm.tqdm(range(runs), total=runs):
         while True:
             try:
-                is_correct, msg = _mk_sim_run(node_count, edge_count, show_incorrect)
+                is_correct, msg = _mk_sim_run(node_count, edge_count, show_incorrect, show_out)
             except nx.PowerIterationFailedConvergence:
                 print('Skipping nx.PowerIterationFailedConvergence graph...')
                 continue
@@ -79,7 +80,8 @@ if __name__ == '__main__':
     parser.add_argument('node_count', metavar='NODE_COUNT', type=int, help='# nodes per graph')
     parser.add_argument('edge_count', metavar='EDGE_COUNT', type=int, help='# edges per graph')
     parser.add_argument('--show-incorrect', action='store_true',
-                        help='Display ranks curves output for incorrect runs.')
+                        help='Display input graph structure for incorrect runs.')
+    parser.add_argument('--show-out', action='store_true', help='Display ranks curves output.')
 
     random.seed(42)
     sys.exit(run(**vars(parser.parse_args())))

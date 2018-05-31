@@ -315,8 +315,8 @@ void neuron_do_timestep_update(timer_t time) {
 
                 // Send the spike
                 key_t k = key | neuron_index;
-                log_info("%16s[t=%04u|#%03d] Sending pkt  0x%08x=0x%08x", "", time, neuron_index, k,
-                    broadcast_rank);
+                log_info("%16s[t=%04u|#%03d] Sending pkt  0x%08x=%k", "", time, neuron_index, k,
+                    K(broadcast_rank));
                 while (!spin1_send_mc_packet(k, broadcast_rank, WITH_PAYLOAD)) {
                     spin1_delay_us(1);
                 }

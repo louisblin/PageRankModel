@@ -1,5 +1,6 @@
 #include "spike_processing.h"
 #include "synapses.h"
+#include "models/neuron_model_page_rank.h"
 #include <neuron/population_table/population_table.h>
 #include <neuron/synapse_row.h>
 #include <common/in_spikes.h>
@@ -168,7 +169,7 @@ static inline void _setup_synaptic_dma_read() {
 // Called when a multicast packet is received
 // pre-condition: packet
 void _mcpl_pkt_received_callback(uint key, uint payload) {
-    log_info("%6s[t=%04u|#%03d] Received pkt 0x%08x=0x%08x", "", time, (0xff & key), key, payload);
+    log_info("%6s[t=%04u|#%03d] Received pkt 0x%08x=%k", "", time, (0xff & key), key, K(payload));
 
     // If there was space to add spike to incoming spike queue
     // Note: assuming second add cannot fail as buffer size is a multiple of 2 x sizeof(uint32_t)

@@ -3,8 +3,6 @@
 #include <common/maths-util.h>
 #include <debug.h>
 
-#define K(n) (n >> 17)
-
 static global_neuron_params_pointer_t global_params;
 
 typedef enum neuron_model_iteration_state {

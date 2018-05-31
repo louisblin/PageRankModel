@@ -11,6 +11,7 @@ from prettytable import PrettyTable
 from python_models8.model_data_holders.page_rank_data_holder import PageRankDataHolder as Page_Rank
 from python_models8.neuron.neuron_models.neuron_model_page_rank import convert_rank
 from python_models8.synapse_dynamics.synapse_dynamics_noop import SynapseDynamicsNoOp
+from examples.fixed_point import FXfamily
 
 RANK = 'v'
 NX_NODE_SIZE = 350
@@ -281,7 +282,6 @@ class PageRankSimulation:
         :return: None
         """
         ranks = self._extract_sim_ranks()
-        time_step = (float(self._run_time) / len(ranks)) if len(ranks) != 0 else 0
 
         if show_graph:
             print("Displaying output graph. "
@@ -291,8 +291,7 @@ class PageRankSimulation:
             ranks = ranks.swapaxes(0, 1)
             labels = self._labels or list(range(len(ranks)))
             for lbl, r in zip(labels, ranks):
-                plt.plot(r, label=self._node_formatter(lbl))
-            plt.xlim = (0, self._run_time - time_step)
+                plt.plot(np.round(r, FLOAT_PRECISION), label=self._node_formatter(lbl))
             plt.legend()
             plt.xticks()
             plt.yticks()
@@ -322,6 +321,11 @@ def silence_stdout():
         sys.stderr = old_stderr
 
 
+def to_fp(n):
+    return FXfamily(n_bits=32)(n)
+
+
+
 def pagerank(G, alpha=0.85, max_iter=100, tol=1.0e-6, ordering=None):
     """Return the PageRank of the nodes in the graph.
 
@@ -332,33 +336,27 @@ def pagerank(G, alpha=0.85, max_iter=100, tol=1.0e-6, ordering=None):
     github.com/networkx/networkx/blob/master/networkx/algorithms/link_analysis/pagerank_alg.py
 
     """
-    from examples.fixed_point import FXfamily
-
-    FixedPoint32 = FXfamily(n_bits=32)
-    def _mk_fp(n):
-        return FixedPoint32(n)
-
-    alpha = _mk_fp(alpha)
+    alpha = to_fp(alpha)
 
     # Create a copy in (right) stochastic form
     W = nx.stochastic_graph(G, weight=None)
     N = W.number_of_nodes()
 
     # Choose fixed starting vector if not given
-    x = dict.fromkeys(W, _mk_fp(1. / N))
-    p = dict.fromkeys(W, _mk_fp(1. / N))
+    x = dict.fromkeys(W, to_fp(1. / N))
+    p = dict.fromkeys(W, to_fp(1. / N))
 
     # power iteration: make up to max_iter iterations
     for iter in range(max_iter):
         # print(np.array([np.float(v) for _, v in sorted(x.items())]))
         xlast = x
-        x = dict.fromkeys(xlast.keys(), _mk_fp(0))
+        x = dict.fromkeys(xlast.keys(), to_fp(0))
         for n in x:
             # this matrix multiply looks odd because it is doing a left multiply x^T=xlast^T*W
             for nbr in W[n]:
-                x[nbr] += alpha * xlast[n] * _mk_fp(W[n][nbr][None])
+                x[nbr] += alpha * xlast[n] * to_fp(W[n][nbr][None])
             if alpha != 1:
-                x[n] += (_mk_fp(1.0) - alpha) * p.get(n, 0)
+                x[n] += (to_fp(1.0) - alpha) * p.get(n, 0)
         # check convergence, l1 norm
         err = sum([abs(x[n] - xlast[n]) for n in x])
         if err < N * tol:
