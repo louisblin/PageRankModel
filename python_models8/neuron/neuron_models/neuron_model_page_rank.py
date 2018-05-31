@@ -1,3 +1,6 @@
+from decimal import Decimal
+from enum import Enum
+
 from pacman.executor.injection_decorator import inject_items
 from pacman.model.decorators.overrides import overrides
 from spynnaker.pyNN.models.neural_properties import NeuronParameter
@@ -6,14 +9,12 @@ from spynnaker.pyNN.models.neuron.neuron_models import AbstractNeuronModel
 from spynnaker.pyNN.utilities import utility_calls
 from data_specification.enums import DataType
 
-from enum import Enum
-
 
 class _NEURAL_PARAMETERS(Enum):
     INCOMING_EDGES_COUNT = (1, DataType.UINT32, 'count')
     OUTGOING_EDGES_COUNT = (2, DataType.UINT32, 'count')
-    RANK_INIT = (3, DataType.S1615, 'rk')
-    CURR_RANK_ACC_INIT = (4, DataType.S1615, 'rk')
+    RANK_INIT = (3, DataType.U032, 'rk')
+    CURR_RANK_ACC_INIT = (4, DataType.U032, 'rk')
     CURR_RANK_COUNT_INIT = (5, DataType.UINT32, 'count')
     HAS_COMPLETED_ITER_INIT = (6, DataType.UINT32, 'bool')
 
@@ -32,6 +33,12 @@ class _NEURAL_PARAMETERS(Enum):
     @property
     def unit(self):
         return self._unit
+
+
+def convert_rank(n):
+    # Rank (voltage originally was stored as a DataType.S1615)
+    scale = Decimal(_NEURAL_PARAMETERS.RANK_INIT.data_type.scale / DataType.S1615.scale)
+    return Decimal(n) / scale
 
 
 class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):

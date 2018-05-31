@@ -63,7 +63,7 @@ void neuron_store_neuron_parameters(address_t address);
 //! \param[in] key the key received in the MC packet
 //! \param[in] payload the payload received in the MC packet
 //! \return nothing
-void update_neuron_payload(uint32_t key, REAL payload);
+void update_neuron_payload(uint32_t key, spike_t payload);
 
 
 #endif // _NEURON_H_
