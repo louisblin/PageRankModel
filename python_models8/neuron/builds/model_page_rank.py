@@ -9,9 +9,9 @@ from python_models8.neuron.threshold_types.threshold_type_noop import ThresholdT
 
 class PageRankBase(AbstractPopulationVertex):
 
-    # TODO: Set the maximum number of atoms per core that can be supported.
-    # For more complex models, you might need to reduce this number.
-    _model_based_max_atoms_per_core = 256
+    # Maximum number of atoms per core that can be supported.
+    # Note: a higher number would overflow the semaphores used.
+    _model_based_max_atoms_per_core = 255
 
     # Default parameters for this build, used when end user has not entered any
     default_parameters = {
@@ -23,7 +23,7 @@ class PageRankBase(AbstractPopulationVertex):
         'rank_init': 0,
         'curr_rank_acc_init': 0,
         'curr_rank_count_init': 0,
-        'has_completed_iter_init': 0,
+        'iter_state_init': 0,
     }
 
     def __init__(
@@ -46,12 +46,12 @@ class PageRankBase(AbstractPopulationVertex):
             rank_init=none_pynn_default_parameters['rank_init'],
             curr_rank_acc_init=none_pynn_default_parameters['curr_rank_acc_init'],
             curr_rank_count_init=none_pynn_default_parameters['curr_rank_count_init'],
-            has_completed_iter_init=none_pynn_default_parameters['has_completed_iter_init']):
+            iter_state_init=none_pynn_default_parameters['iter_state_init']):
 
         neuron_model = NeuronModelPageRank(
                 n_neurons,
                 incoming_edges_count, outgoing_edges_count,
-                rank_init, curr_rank_acc_init, curr_rank_count_init, has_completed_iter_init)
+                rank_init, curr_rank_acc_init, curr_rank_count_init, iter_state_init)
 
         input_type = InputTypeCurrent()
 

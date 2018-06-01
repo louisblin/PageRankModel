@@ -2,11 +2,14 @@
 
 #include <common/maths-util.h>
 #include <debug.h>
+#include <sark.h>
 
 static global_neuron_params_pointer_t global_params;
 
 typedef enum neuron_model_iteration_state {
-    HAS_SENT_PKT, HAS_RECEIVED_PKTS
+    ITER_BEGIN,
+    ITER_HAS_SENT_PKT,
+    ITER_HAS_FINISHED
 } neuron_model_iteration_state;
 
 
@@ -15,11 +18,10 @@ void neuron_model_set_global_neuron_params(global_neuron_params_pointer_t params
 }
 
 // Triggered when a packet is received
-//   or, when all params are UNUSED, to get the number of inputs received
 void neuron_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t neuron) {
+
     // Decode key / payload
     index_t idx = (index_t) key;
-
     union payloadDeserializer {
         spike_t asSpikeT;
         UFRACT asFract;
@@ -38,8 +40,10 @@ void neuron_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t 
         K(prev_rank_acc), prev_rank_count, K(contrib.asFract), K(neuron->curr_rank_acc),
         neuron->curr_rank_count, neuron->incoming_edges_count);
 
-    if ( neuron->curr_rank_count >= neuron->incoming_edges_count ) {
-        neuron->has_completed_iter = 1;
+    if (neuron->curr_rank_count >= neuron->incoming_edges_count) {
+        // Lowers a semaphore associated with the AppID running on this core.
+        sark_app_lower();
+        neuron->iter_state = ITER_HAS_FINISHED;
         log_info("[idx=%03u] neuron_model_state_update: iteration completed (%k)", idx,
             K(neuron->curr_rank_acc));
     }
@@ -68,33 +72,36 @@ REAL neuron_model_get_rank_as_real(neuron_pointer_t neuron) {
     return rank.asReal;
 }
 
+bool neuron_model_should_send_pkt(neuron_pointer_t neuron) {
+    return neuron->iter_state < ITER_HAS_SENT_PKT;
+}
 
 // Perform operations required to reset the state after a spike
 void neuron_model_will_send_pkt(neuron_pointer_t neuron) {
     log_debug("Neuron spiked: rank = %k[0x%08x]", K(neuron->rank), neuron->rank);
 
-    // If not expected to receive any packets, iteration is finished for the node
-    if (neuron->incoming_edges_count == 0) {
-        neuron->has_completed_iter = 1;
+    if (neuron->incoming_edges_count > 0) {
+        // Raises a semaphore associated with the AppID running on this core.
+        sark_app_raise();
+        neuron->iter_state = ITER_HAS_FINISHED;
+    } else {
+        // Else, not expected to receive any packets so iteration is finished for the node
+        neuron->iter_state = ITER_HAS_SENT_PKT;
     }
-}
-
-bool neuron_model_has_finished_iteration(neuron_pointer_t neuron) {
-    return neuron->has_completed_iter;
 }
 
 void neuron_model_iteration_did_finish(neuron_pointer_t neuron) {
     neuron->rank = neuron->curr_rank_acc;
     neuron->curr_rank_acc = 0;
     neuron->curr_rank_count = 0;
-    neuron->has_completed_iter = 0;
+    neuron->iter_state = ITER_BEGIN;
 }
 
 void neuron_model_print_state_variables(restrict neuron_pointer_t neuron) {
-    log_info("rank               = %k", K(neuron->rank));
-    log_info("curr_rank_acc      = %k", K(neuron->curr_rank_acc));
-    log_info("curr_rank_count    = %d", neuron->curr_rank_count);
-    log_info("has_completed_iter = %d", neuron->has_completed_iter);
+    log_info("rank            = %k", K(neuron->rank));
+    log_info("curr_rank_acc   = %k", K(neuron->curr_rank_acc));
+    log_info("curr_rank_count = %d", neuron->curr_rank_count);
+    log_info("iter_state      = %d", neuron->iter_state);
 }
 
 void neuron_model_print_parameters(restrict neuron_pointer_t neuron) {
