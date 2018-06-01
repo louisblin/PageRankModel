@@ -6,7 +6,7 @@ import tqdm
 
 from examples.page_rank import PageRankSimulation, silence_stdout
 
-RUN_TIME = 39.
+RUN_TIME = 100.
 PARAMETERS = {
     'time_scale_factor': 5
 }

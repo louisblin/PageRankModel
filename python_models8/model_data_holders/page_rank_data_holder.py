@@ -26,9 +26,7 @@ class PageRankDataHolder(DataHolder):
             rank_init=PageRankBase.none_pynn_default_parameters['rank_init'],
             curr_rank_acc_init=PageRankBase.none_pynn_default_parameters['curr_rank_acc_init'],
             curr_rank_count_init=PageRankBase.none_pynn_default_parameters['curr_rank_count_init'],
-            has_completed_iter_init=PageRankBase.none_pynn_default_parameters[
-                'has_completed_iter_init']
-            ):
+            iter_state_init=PageRankBase.none_pynn_default_parameters['iter_state_init']):
         DataHolder.__init__(
             self, {
                 'spikes_per_second': spikes_per_second,
@@ -41,7 +39,7 @@ class PageRankDataHolder(DataHolder):
                 'rank_init': rank_init,
                 'curr_rank_acc_init': curr_rank_acc_init,
                 'curr_rank_count_init': curr_rank_count_init,
-                'has_completed_iter_init': has_completed_iter_init,
+                'iter_state_init': iter_state_init,
             }
         )
 

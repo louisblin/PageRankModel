@@ -18,7 +18,7 @@ typedef struct neuron_t {
     // Pending neuron update: the accumulated / count of ranks received.
     UFRACT curr_rank_acc;
     uint32_t curr_rank_count;
-    uint32_t has_completed_iter;
+    uint32_t iter_state;
 
 } neuron_t;
 
@@ -33,9 +33,9 @@ void neuron_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t 
 REAL neuron_model_get_rank_as_real(neuron_pointer_t neuron);
 payload_t neuron_model_get_broadcast_rank(neuron_pointer_t neuron);
 
+bool neuron_model_should_send_pkt(neuron_pointer_t neuron);
 void neuron_model_will_send_pkt(neuron_pointer_t neuron);
 
-bool neuron_model_has_finished_iteration(neuron_pointer_t neuron);
 void neuron_model_iteration_did_finish(neuron_pointer_t neuron);
 
 

@@ -65,8 +65,10 @@ class PageRankSimulation:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # exception is cascaded if there is one...
-        p.end()
+        if exc_type is None:
+            p.end()  # Would fail on error
+            return
+        # else, exception is cascaded if there is one...
 
     #
     # Private functions, internal helpers

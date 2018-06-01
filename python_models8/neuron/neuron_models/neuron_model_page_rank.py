@@ -17,12 +17,11 @@ class _NEURAL_PARAMETERS(Enum):
     RANK_INIT = (3, DataType.U032, 'rk')
     CURR_RANK_ACC_INIT = (4, DataType.U032, 'rk')
     CURR_RANK_COUNT_INIT = (5, DataType.UINT32, 'count')
-    HAS_COMPLETED_ITER_INIT = (6, DataType.UINT32, 'bool')
+    ITER_STATE_INIT = (6, DataType.UINT32, 'state')
 
     def __new__(cls, value, data_type, unit):
         obj = object.__new__(cls)
-        # Note: value order is used for iteration
-        obj._value_ = value
+        obj._value_ = value  # Note: value order is used for iteration
         obj._data_type = data_type
         obj._unit = unit
         return obj
@@ -50,7 +49,7 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
 
     def __init__(self, n_neurons,
                  incoming_edges_count, outgoing_edges_count,
-                 rank_init, curr_rank_acc_init, curr_rank_count_init, has_completed_iter_init):
+                 rank_init, curr_rank_acc_init, curr_rank_count_init, iter_state_init):
         AbstractNeuronModel.__init__(self)
         AbstractContainsUnits.__init__(self)
 
@@ -65,7 +64,7 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
             ('rank_init', rank_init),
             ('curr_rank_acc_init', curr_rank_acc_init),
             ('curr_rank_count_init', curr_rank_count_init),
-            ('has_completed_iter_init', has_completed_iter_init),
+            ('iter_state_init', iter_state_init),
         ])
 
     def _var_init(self, state_var):
@@ -145,11 +144,7 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
 
     @overrides(AbstractNeuronModel.get_n_cpu_cycles_per_neuron)
     def get_n_cpu_cycles_per_neuron(self):
-        # Number of CPU cycles taken by
-        #   the neuron_model_state_update,
-        #   neuron_model_get_membrane_voltage,
-        #   neuron_model_has_spiked
-        # functions in the C code
+        # Number of CPU cycles taken by neuron_model functions in main loop
         #   Note: This can be a guess
         return 40
 

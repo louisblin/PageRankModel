@@ -13,6 +13,7 @@
 #include <recording.h>
 #include <debug.h>
 #include <string.h>
+#include <sark.h>
 
 // declare spin1_wfi
 void spin1_wfi();
@@ -35,9 +36,6 @@ static bool use_key;
 
 //! The number of neurons on the core
 static uint32_t n_neurons;
-
-//! Keeps track of which neuron have sent their packet during the iteration
-static bool *has_sent_packets;
 
 //! The recording flags
 static uint32_t recording_flags;
@@ -97,14 +95,6 @@ static inline void _print_neuron_parameters() {
     log_info("-------------------------------------\n");
     //}
 //#endif // LOG_LEVEL >= LOG_DEBUG
-}
-
-//! \brief sets to false the has_sent_packets array at the start of a new iteration
-static inline void _reset_has_sent_packets() {
-    log_info("RESETTING has_sent_packets");
-    for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
-        has_sent_packets[neuron_index] = false;
-    }
 }
 
 //! \brief does the memory copy for the neuron parameters
@@ -198,16 +188,6 @@ bool neuron_initialise(address_t address, uint32_t recording_flags_param,
         }
     }
 
-    // Allocate DTCM for has_sent_packet
-    if (n_neurons > 0) {
-        has_sent_packets = (bool *) spin1_malloc(sizeof(bool) * n_neurons);
-        if (has_sent_packets == NULL) {
-            log_error("Unable to allocate has_sent_packets - Out of DTCM");
-            return false;
-        }
-        _reset_has_sent_packets();
-    }
-
     // Load the data into the allocated DTCM spaces.
     if (!_neuron_load_neuron_parameters(address)){
         return false;
@@ -259,9 +239,6 @@ void neuron_do_timestep_update(timer_t time) {
 
     log_info("\n\n===== TIME STEP = %u =====", time);
 
-    // Track sent packets for each node
-    bool hasSentAllPackets = true;
-
     // Wait a random number of clock cycles
     uint32_t random_back_off_time = tc[T1_COUNT] - random_back_off;
     while (tc[T1_COUNT] > random_back_off_time) {
@@ -287,14 +264,9 @@ void neuron_do_timestep_update(timer_t time) {
         // Record the rank at the beginning of the iteration
         ranks->states[neuron_index] = neuron_model_get_rank_as_real(neuron);
 
-        // Determine if a spike should occur
-        bool spike = !has_sent_packets[neuron_index];
-
-        if (spike) {
+        if (neuron_model_should_send_pkt(neuron)) {
             // Tell the neuron model
             neuron_model_will_send_pkt(neuron);
-
-            has_sent_packets[neuron_index] = true;
 
             // Get new rank
             payload_t broadcast_rank = neuron_model_get_broadcast_rank(neuron);
@@ -322,36 +294,20 @@ void neuron_do_timestep_update(timer_t time) {
                 }
             }
         } else {
-            log_info("The neuron %d has been determined to not spike", neuron_index);
-        }
-
-        if (!has_sent_packets[neuron_index]) {
-            hasSentAllPackets = false;
+            log_info("%16s[t=%04u|#%03d] No spike required.", time, neuron_index);
         }
     }
 
     // Disable interrupts to avoid possible concurrent access
     uint cpsr = spin1_int_disable();
 
-    // Reset if all to true
-    if (hasSentAllPackets) {
-        bool hasReceivedAllUpdates = true;
+    // Check if all neurons have completed their iteration
+    if (sark_app_sema() == 0) {
         for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
             neuron_pointer_t neuron = &neuron_array[neuron_index];
-            if ( !neuron_model_has_finished_iteration(neuron) ) {
-                hasReceivedAllUpdates = false;
-                break;
-            }
+            neuron_model_iteration_did_finish(neuron);
         }
-
-        if (hasReceivedAllUpdates) {
-            _reset_has_sent_packets();
-            for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
-                neuron_pointer_t neuron = &neuron_array[neuron_index];
-                neuron_model_iteration_did_finish(neuron);
-            }
-            _print_neurons();
-        }
+        _print_neurons();
     }
 
     // record neuron state (membrane potential) if needed
