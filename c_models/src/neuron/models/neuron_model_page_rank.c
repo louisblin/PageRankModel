@@ -115,7 +115,8 @@ void neuron_model_will_send_pkt(neuron_pointer_t neuron) {
 }
 
 void neuron_model_iteration_did_finish(neuron_pointer_t neuron) {
-    neuron->rank = neuron->curr_rank_acc;
+    neuron->rank = global_params->damping_sum
+                 + global_params->damping_factor * neuron->curr_rank_acc;
     neuron->curr_rank_acc = 0;
     neuron->curr_rank_count = 0;
     CHECKPOINT_RESET(neuron);

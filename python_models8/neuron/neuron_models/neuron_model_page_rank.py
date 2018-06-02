@@ -11,6 +11,27 @@ from spynnaker.pyNN.utilities import utility_calls
 from data_specification.enums import DataType
 
 
+class _GLOBAL_PARAMETERS(Enum):
+    DAMPING_FACTOR = (1, DataType.U032, 'proba')
+    DAMPING_SUM = (2, DataType.U032, 'rk')
+    MACHINE_TIME_STEP = (3, DataType.UINT32, 'steps')
+
+    def __new__(cls, value, data_type, unit):
+        obj = object.__new__(cls)
+        obj._value_ = value  # Note: value order is used for iteration
+        obj._data_type = data_type
+        obj._unit = unit
+        return obj
+
+    @property
+    def data_type(self):
+        return self._data_type
+
+    @property
+    def unit(self):
+        return self._unit
+
+
 class _NEURAL_PARAMETERS(Enum):
     INCOMING_EDGES_COUNT = (1, DataType.UINT32, 'count')
     OUTGOING_EDGES_COUNT = (2, DataType.UINT32, 'count')
@@ -35,19 +56,10 @@ class _NEURAL_PARAMETERS(Enum):
         return self._unit
 
 
-def convert_rank(n):
-    # Rank (voltage originally was stored as a DataType.S1615)
-    scale = Decimal(_NEURAL_PARAMETERS.RANK_INIT.data_type.scale / DataType.S1615.scale)
-    n = np.float(Decimal(n) / scale)
-    # Handle erroneous conversion of non-existing sign bit in UFRACT
-    if n < 0:
-        n = 1 + n
-    return n
-
-
 class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
 
     def __init__(self, n_neurons,
+                 damping_factor, damping_sum,
                  incoming_edges_count, outgoing_edges_count,
                  rank_init, curr_rank_acc_init, curr_rank_count_init, iter_state_init):
         AbstractNeuronModel.__init__(self)
@@ -55,11 +67,15 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
 
         self._n_neurons = n_neurons
 
-        # Store any parameters
+        # Global parameters
+        self._damping_factor = damping_factor
+        self._damping_sum = damping_sum
+
+        # Store any neural parameters
         self._incoming_edges_count = self._var_init(incoming_edges_count)
         self._outgoing_edges_count = self._var_init(outgoing_edges_count)
 
-        # Store any state variables
+        # Store any neural state variables
         self._initialize_state_vars([
             ('rank_init', rank_init),
             ('curr_rank_acc_init', curr_rank_acc_init),
@@ -71,6 +87,22 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
         return utility_calls.convert_param_to_numpy(state_var, self._n_neurons)
 
     # Getters and setters for the parameters
+    @property
+    def damping_factor(self):
+        return self._damping_factor
+
+    @damping_factor.setter
+    def damping_factor(self, damping_factor):
+        self._damping_factor = damping_factor
+
+    @property
+    def damping_sum(self):
+        return self._damping_sum
+
+    @damping_sum.setter
+    def damping_sum(self, damping_sum):
+        self._damping_sum = damping_sum
+
     @property
     def incoming_edges_count(self):
         return self._incoming_edges_count
@@ -123,7 +155,7 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
 
     @overrides(AbstractNeuronModel.get_n_global_parameters)
     def get_n_global_parameters(self):
-        return 1
+        return len(_GLOBAL_PARAMETERS)
 
     # noinspection PyMethodOverriding
     @inject_items({"machine_time_step": "MachineTimeStep"})
@@ -132,15 +164,21 @@ class NeuronModelPageRank(AbstractNeuronModel, AbstractContainsUnits):
         additional_arguments={"machine_time_step"}
     )
     def get_global_parameters(self, machine_time_step):
+        def _get_var(item):
+            name = item.name.lower()
+            if name == 'machine_time_step':
+                return machine_time_step
+            return getattr(self, '_'+name)
+
         # Note: must match the order of the parameters in the `global_neuron_t' in the C code
         return [
-            # uint32_t machine_time_step
-            NeuronParameter(machine_time_step, DataType.UINT32)
+            NeuronParameter(_get_var(item), item.data_type)
+            for item in _GLOBAL_PARAMETERS
         ]
 
     @overrides(AbstractNeuronModel.get_global_parameter_types)
     def get_global_parameter_types(self):
-        return [DataType.UINT32]
+        return [item.data_type for item in _GLOBAL_PARAMETERS]
 
     @overrides(AbstractNeuronModel.get_n_cpu_cycles_per_neuron)
     def get_n_cpu_cycles_per_neuron(self):
