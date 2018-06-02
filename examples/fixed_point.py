@@ -211,14 +211,14 @@ class FXfamily(object):
             return (self.fraction_bits == other.fraction_bits
                     and self.integer_bits == other.integer_bits)
         except AttributeError:
-            return false
+            return False
 
     def __ne__(self, other):
         try:
             return (self.fraction_bits != other.fraction_bits
                     or self.integer_bits != other.integer_bits)
         except AttributeError:
-            return true
+            return True
 
     def __call__(self, val):
         """Create a fixed-point number within this family."""

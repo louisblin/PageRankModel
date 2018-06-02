@@ -26,7 +26,7 @@ def run(show_in=False, show_out=False):
 
     with PageRankSimulation(RUN_TIME, edges) as sim:
         sim.draw_input_graph(show_graph=show_in)
-        sim.run(verify=True, find_iter=True)
+        sim.run(verify=True)
         sim.draw_output_graph(show_graph=show_out, pause=not show_out)
 
 
