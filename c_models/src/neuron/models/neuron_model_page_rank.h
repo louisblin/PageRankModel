@@ -23,6 +23,13 @@ typedef struct neuron_t {
 } neuron_t;
 
 typedef struct global_neuron_params_t {
+    // Probability user click to the next page: d
+    UFRACT damping_factor;
+
+    // Rank from probability user stays on the page: (1-d) / N
+    UFRACT damping_sum;
+
+    // Time steps since beginning of simulation
     uint32_t machine_time_step;
 
 } global_neuron_params_t;

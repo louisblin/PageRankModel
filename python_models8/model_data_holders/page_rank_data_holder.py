@@ -21,6 +21,8 @@ class PageRankDataHolder(DataHolder):
             label=AbstractPopulationVertex.none_pynn_default_parameters['label'],
 
             # PageRankBase
+            damping_factor=PageRankBase.default_parameters['damping_factor'],
+            damping_sum=PageRankBase.default_parameters['damping_sum'],
             incoming_edges_count=PageRankBase.default_parameters['incoming_edges_count'],
             outgoing_edges_count=PageRankBase.default_parameters['outgoing_edges_count'],
             rank_init=PageRankBase.none_pynn_default_parameters['rank_init'],
@@ -34,6 +36,8 @@ class PageRankDataHolder(DataHolder):
                 'incoming_spike_buffer_size': incoming_spike_buffer_size,
                 'constraints': constraints,
                 'label': label,
+                'damping_factor': damping_factor,
+                'damping_sum': damping_sum,
                 'incoming_edges_count': incoming_edges_count,
                 'outgoing_edges_count': outgoing_edges_count,
                 'rank_init': rank_init,

@@ -54,9 +54,9 @@ def check_sim_ran(func):
 
 class PageRankSimulation:
 
-    def __init__(self, run_time, edges, labels=None, parameters=None, damping=1,
+    def __init__(self, run_time, edges, labels=None, parameters=None, damping=.85,
                  log_level=logging.INFO):
-        self._validate_graph_structure(edges, labels)
+        self._validate_graph_structure(edges, labels, damping)
 
         # Simulation parameters
         self._run_time     = run_time
@@ -66,7 +66,6 @@ class PageRankSimulation:
         self._sim_edges    = self._gen_sim_edges(self._edges, self._labels, self._sim_vertices)
         self._parameters   = DEFAULT_SPYNNAKER_PARAMS
         self._parameters.update(parameters or {})
-        # TODO: add support for Damping factor
         self._damping      = damping
 
         # Simulation state variables
@@ -94,7 +93,7 @@ class PageRankSimulation:
     #
     # Private functions, internal helpers
     #
-    def _validate_graph_structure(self, edges, labels):
+    def _validate_graph_structure(self, edges, labels, damping):
         # Ensure to duplicate edges
         size_diff = len(edges) - len(set(edges))
         if size_diff != 0:
@@ -105,6 +104,10 @@ class PageRankSimulation:
             size_diff = len(labels) - len(self._gen_labels(edges))
             if size_diff != 0:
                 raise ValueError("#labels don't match #edges by %d labels." % size_diff)
+
+        # Ensure damping factor has a valid range
+        if not (0 <= damping < 1):
+            raise ValueError("Damping factor '%.02f' not in valid range [0,1)." % damping)
 
     @staticmethod
     def _gen_labels(edges):
@@ -157,6 +160,8 @@ class PageRankSimulation:
         pop = p.Population(
             n_neurons,
             Page_Rank(
+                damping_factor=self._get_damping_factor(),
+                damping_sum=self._get_damping_sum(),
                 rank_init=1./n_neurons,
                 incoming_edges_count=incoming_edges_count,
                 outgoing_edges_count=outgoing_edges_count
@@ -196,12 +201,28 @@ class PageRankSimulation:
                 xlast = x
 
             # Copy first convergence row to all remaining
-            for i in range(convergence, len(ranks)):
+            for i in range(convergence + 1, len(ranks)):
                 ranks[i, :] = ranks[convergence, :]
 
             self._sim_ranks = ranks
             self._sim_convergence = convergence
         return self._sim_ranks, self._sim_convergence
+
+    @staticmethod
+    def _to_fp(n):
+        return FXfamily(n_bits=32)(n)
+
+    @staticmethod
+    def _to_hex(fp):
+        return fp.toBinaryString(logBase=4, twosComp=False)
+
+    def _get_damping_factor(self):
+        # Ensures float is can be losslessly encoded in fixed-point
+        return float(self._to_fp(self._damping))
+
+    def _get_damping_sum(self):
+        # Ensures float is can be losslessly encoded in fixed-point
+        return float(self._to_fp((1. - self._damping) / len(self._labels)))
 
     def _compute_page_rank(self, max_iter=100):
         """Return the PageRank of the nodes in the graph.
@@ -213,48 +234,52 @@ class PageRankSimulation:
         github.com/networkx/networkx/blob/master/networkx/algorithms/link_analysis/pagerank_alg.py
 
         """
-        def to_fp(n):
-            return FXfamily(n_bits=32)(n)
-
-        def to_hex(fp):
-            return fp.toBinaryString(logBase=4, twosComp=False)
-
-        # Create a copy in (right) stochastic form
+        # Init graph structure
         if self._input_graph is None:
             # Compute input graph if not defined
             self.draw_input_graph(show_graph=False)
+
         W = nx.stochastic_graph(self._input_graph, weight=None)
         N = W.number_of_nodes()
 
         # Init fixed-point constants
-        alpha = to_fp(self._damping)
-        tol = to_fp(10**(-FLOAT_PRECISION))
-        ZERO = to_fp(0)
-        ONE = to_fp(1.)
-        N = to_fp(N)
+        d = self._to_fp(self._get_damping_factor())
+        tol = self._to_fp(10**(-FLOAT_PRECISION))
+        ZERO = self._to_fp(0)
+        ONE = self._to_fp(1.)
+        N = self._to_fp(N)
+        damping_sum = self._to_fp(self._get_damping_sum())
 
-        # Choose fixed starting vector if not given
+        # Iterate up to max_iter iterations
         x = dict.fromkeys(W, ONE / N)
-        p = dict.fromkeys(W, ONE / N)
-
-        # power iteration: make up to max_iter iterations
         for iter in range(max_iter):
             logger.debug('\n===== TIME STEP = {} ====='.format(iter))
             xlast = x
             x = dict.fromkeys(xlast.keys(), ZERO)
-            for node in x:
-                pkt = xlast[node] / to_fp(len(W[node]))
-                logger.debug('[t=%04d|#%3s] Sending pkt %f[%s]' % (iter, node, pkt, to_hex(pkt)))
 
+            for node in x:
+                pkt = xlast[node] / self._to_fp(len(W[node]))
+                logger.debug('[t=%04d|#%3s] Sending pkt %f[%s]' % (
+                    iter, node, pkt, self._to_hex(pkt)))
+
+                # Exchange ranks
                 for conn_node in W[node]:  # edge: node -> conn_node
-                    prev_rank = x[conn_node]
-                    x[conn_node] += alpha * pkt
-                    logger.debug("[idx=%3s] %f[%s] + %f[%s] = %f[%s]" % (conn_node, prev_rank,
-                        to_hex(prev_rank), pkt, to_hex(pkt), x[conn_node], to_hex(x[conn_node])
-                    ))
-                if alpha != ONE:
-                    x[node] += (ONE - alpha) * p.get(node, ZERO)
-            # check convergence, l1 norm
+                    prev = x[conn_node]
+                    x[conn_node] += pkt
+                    logger.debug("[idx=%3s] %f[%s] + %f[%s] = %f[%s]" % (
+                        conn_node, prev, self._to_hex(prev), pkt, self._to_hex(pkt), x[conn_node],
+                        self._to_hex(x[conn_node])))
+
+            # Compute dangling factor
+            if d != ONE:
+                for node in x:
+                    prev = x[node]
+                    x[node] = damping_sum + d * x[node]
+                    logger.debug("[idx=%3s] %f[%s] * %f[%s] + %f[%s] = %f[%s]" % (
+                        node, d, self._to_hex(d), prev, self._to_hex(prev), damping_sum,
+                        self._to_hex(damping_sum), x[node], self._to_hex(x[node])))
+
+            # Check convergence, l1 norm
             err = sum([abs(x[node] - xlast[node]) for node in x])
             if err < N * tol:
                 if self._labels:

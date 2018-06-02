@@ -15,6 +15,8 @@ class PageRankBase(AbstractPopulationVertex):
 
     # Default parameters for this build, used when end user has not entered any
     default_parameters = {
+        'damping_factor': 0,
+        'damping_sum': 0,
         'incoming_edges_count': 0,
         'outgoing_edges_count': 0,
     }
@@ -36,6 +38,10 @@ class PageRankBase(AbstractPopulationVertex):
             constraints=AbstractPopulationVertex.none_pynn_default_parameters['constraints'],
             label=AbstractPopulationVertex.none_pynn_default_parameters['label'],
 
+            # Global model parameters
+            damping_factor=default_parameters['damping_factor'],
+            damping_sum=default_parameters['damping_sum'],
+
             # Model parameters
             incoming_edges_count=default_parameters['incoming_edges_count'],
             outgoing_edges_count=default_parameters['outgoing_edges_count'],
@@ -50,6 +56,7 @@ class PageRankBase(AbstractPopulationVertex):
 
         neuron_model = NeuronModelPageRank(
                 n_neurons,
+                damping_factor, damping_sum,
                 incoming_edges_count, outgoing_edges_count,
                 rank_init, curr_rank_acc_init, curr_rank_count_init, iter_state_init)
 
