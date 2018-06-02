@@ -73,28 +73,28 @@ typedef enum parameters_in_neuron_parameter_data_region {
 static inline void _print_neurons() {
 
 //! only if the models are compiled in debug mode will this method contain these lines.
-//#if LOG_LEVEL >= LOG_DEBUG
-    log_info("-------------------------------------\n");
+#if LOG_LEVEL >= LOG_DEBUG
+    log_debug("-------------------------------------");
     for (index_t n = 0; n < n_neurons; n++) {
+        log_debug("### Node %d ###", n);
         neuron_model_print_state_variables(&(neuron_array[n]));
     }
-    log_info("-------------------------------------\n");
-    //}
-//#endif // LOG_LEVEL >= LOG_DEBUG
+    log_debug("-------------------------------------\n");
+#endif // LOG_LEVEL >= LOG_DEBUG
 }
 
 //! private method for doing output debug data on the neurons
 static inline void _print_neuron_parameters() {
 
 //! only if the models are compiled in debug mode will this method contain these lines.
-//#if LOG_LEVEL >= LOG_DEBUG
-    log_info("-------------------------------------\n");
+#if LOG_LEVEL >= LOG_DEBUG
+    log_debug("-------------------------------------");
     for (index_t n = 0; n < n_neurons; n++) {
+        log_debug("### Node %d ###", n);
         neuron_model_print_parameters(&(neuron_array[n]));
     }
-    log_info("-------------------------------------\n");
-    //}
-//#endif // LOG_LEVEL >= LOG_DEBUG
+    log_debug("-------------------------------------\n");
+#endif // LOG_LEVEL >= LOG_DEBUG
 }
 
 //! \brief does the memory copy for the neuron parameters
@@ -239,6 +239,25 @@ void neuron_do_timestep_update(timer_t time) {
 
     log_info("\n\n===== TIME STEP = %u =====", time);
 
+    // Disable interrupts to avoid possible concurrent access
+    uint cpsr = spin1_int_disable();
+
+    // Check if all neurons have completed their iteration
+    // Note: important to skip first iteration otherwise ranks will be erased
+    if (0 < time && sark_app_sema() == 0) {
+        log_info("=> Iteration will start.");
+        for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
+            neuron_pointer_t neuron = &neuron_array[neuron_index];
+            neuron_model_iteration_did_finish(neuron);
+        }
+        _print_neurons();
+    } else {
+        log_info("=> Iteration ongoing (%d).", sark_app_sema());
+    }
+
+    // Re-enable interrupts
+    spin1_mode_restore(cpsr);
+
     // Wait a random number of clock cycles
     uint32_t random_back_off_time = tc[T1_COUNT] - random_back_off;
     while (tc[T1_COUNT] > random_back_off_time) {
@@ -294,21 +313,12 @@ void neuron_do_timestep_update(timer_t time) {
                 }
             }
         } else {
-            log_info("%16s[t=%04u|#%03d] No spike required.", time, neuron_index);
+            log_debug("%16s[t=%04u|#%03d] No spike required.", "", time, neuron_index);
         }
     }
 
     // Disable interrupts to avoid possible concurrent access
-    uint cpsr = spin1_int_disable();
-
-    // Check if all neurons have completed their iteration
-    if (sark_app_sema() == 0) {
-        for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
-            neuron_pointer_t neuron = &neuron_array[neuron_index];
-            neuron_model_iteration_did_finish(neuron);
-        }
-        _print_neurons();
-    }
+    cpsr = spin1_int_disable();
 
     // record neuron state (membrane potential) if needed
     if (recording_is_channel_enabled(recording_flags, RANK_RECORDING_CHANNEL)) {

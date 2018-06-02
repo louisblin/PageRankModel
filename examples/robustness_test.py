@@ -6,9 +6,9 @@ import tqdm
 
 from examples.page_rank import PageRankSimulation, silence_stdout
 
-RUN_TIME = 100.
+RUN_TIME = 20.
 PARAMETERS = {
-    'time_scale_factor': 5
+    'time_scale_factor': 100
 }
 
 
@@ -39,7 +39,6 @@ def _mk_graph(node_count, edge_count):
                 edges.append(edge)
                 break
     return edges
-
 
 def _mk_sim_run(node_count, edge_count, show_incorrect, show_out):
     ###############################################################################

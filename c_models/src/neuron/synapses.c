@@ -20,7 +20,7 @@ static uint32_t saturation_count = 0;
 
 static inline void _print_synaptic_row(synaptic_row_t synaptic_row) {
 #if LOG_LEVEL >= LOG_DEBUG
-    log_info("Synaptic row, at address %08x Num plastic words:%u\n",
+    log_debug("Synaptic row, at address %08x Num plastic words:%u\n",
               (uint32_t )synaptic_row, synapse_row_plastic_size(synaptic_row));
     if (synaptic_row == NULL) {
         return;
@@ -31,14 +31,13 @@ static inline void _print_synaptic_row(synaptic_row_t synaptic_row) {
     address_t fixed_region_address = synapse_row_fixed_region(synaptic_row);
     address_t fixed_synapses = synapse_row_fixed_weight_controls(fixed_region_address);
     size_t n_fixed_synapses = synapse_row_num_fixed_synapses(fixed_region_address);
-    log_info("Fixed region %u fixed synapses (%u plastic control words):\n",
+    log_debug("Fixed region %u fixed synapses (%u plastic control words):\n",
               n_fixed_synapses, synapse_row_num_plastic_controls(fixed_region_address));
 
     for (uint32_t i = 0; i < n_fixed_synapses; i++) {
         uint32_t synapse = fixed_synapses[i];
-        uint32_t synapse_type = synapse_row_sparse_type(synapse);
 
-        log_info("%08x [%3d: (w: %5u d: %2u, n = %3u)] - {%08x %08x}\n",
+        log_debug("%08x [%3d: (w: %5u d: %2u, n = %3u)] - {%08x %08x}\n",
             synapse, i, synapse_row_sparse_weight(synapse),
             synapse_row_sparse_delay(synapse),
             synapse_row_sparse_index(synapse),
@@ -64,14 +63,14 @@ bool synapses_initialise(
     use(ring_buffer_to_input_buffer_left_shifts);
     use(direct_synapses_address);
 
-    log_info("synapses_initialise: starting");
+//    log_info("synapses_initialise: starting");
 
     n_neurons = n_neurons_value;
 
     // Work out the positions of the direct and indirect synaptic matrices and copy the direct
     // matrix to DTCM
-    uint32_t direct_matrix_offset = (synaptic_matrix_address[0] >> 2) + 1;
-    log_info("Indirect matrix is %u words in size", direct_matrix_offset - 1);
+//    uint32_t direct_matrix_offset = (synaptic_matrix_address[0] >> 2) + 1;
+//    log_info("Indirect matrix is %u words in size", direct_matrix_offset - 1);
     *indirect_synapses_address = &(synaptic_matrix_address[1]);
 
     log_info("synapses_initialise: completed successfully");

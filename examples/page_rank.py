@@ -66,8 +66,7 @@ class PageRankSimulation:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is None:
-            p.end()  # Would fail on error
-            return
+            p.end()  # fails on sPyNNaker runtime error
         # else, exception is cascaded if there is one...
 
     #
