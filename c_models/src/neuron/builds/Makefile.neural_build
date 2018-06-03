@@ -83,7 +83,10 @@ $$(call build_dir, $(1)): $(1) $$(SYNAPSE_TYPE_H)
 	-mkdir -p $$(dir $$@)
 	$$(CC) -D__FILE__=\"$$(notdir $$*.c)\" -DLOG_LEVEL=$(SYNAPSE_DEBUG) \
 	        $$(CFLAGS) \
-	        -include $(SYNAPSE_TYPE_H) -o $$@ $$<
+	        -include $(SYNAPSE_TYPE_H) \
+	        -o $$@ $$<
+#	        -include $(EXTRA_SRC_DIR)/common/in_spikes.h \
+
 endef
 
 $(foreach obj, $(SYNAPSE_TYPE_SOURCES), $(eval $(call synapse_type_rule, $(obj))))

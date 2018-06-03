@@ -7,6 +7,7 @@ CURRENT_DIR := $(dir $(MAKEFILE_PATH))
 EXTRA_SRC_DIR := $(abspath $(CURRENT_DIR)/../..)
 SOURCE_DIRS += $(EXTRA_SRC_DIR)
 APP_OUTPUT_DIR := $(abspath $(CURRENT_DIR)../../../../python_models8/model_binaries/)/
+# Override some imported headers
 CFLAGS += -I$(NEURAL_MODELLING_DIRS)/src -Wno-type-limits
 
 EXTRA_SYNAPSE_TYPE_OBJECTS +=

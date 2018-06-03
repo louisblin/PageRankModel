@@ -16,11 +16,12 @@ from examples.fixed_point import FXfamily
 LOG_LEVEL_PAGE_RANK_INFO = logging.INFO + 1
 RANK = 'v'
 NX_NODE_SIZE = 350
+ITER_BITS = 3  # see c_models/src/common/in_spikes.h
 FLOAT_PRECISION = 5
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
 DEFAULT_SPYNNAKER_PARAMS = {
     'timestep': 1.,
-    'time_scale_factor': 4
+    'time_scale_factor': 5
 }
 
 logger = logging.getLogger(__name__)
@@ -265,7 +266,9 @@ class PageRankSimulation:
                 # Exchange ranks
                 for conn_node in W[node]:  # edge: node -> conn_node
                     prev = x[conn_node]
-                    x[conn_node] += pkt
+                    # Simulates payload-lossy encoding of the iteration
+                    # See c_models/src/common/in_spikes.h:in_spikes_payload_format
+                    x[conn_node] += ((pkt >> ITER_BITS) << ITER_BITS)
                     logger.debug("[idx=%3s] %f[%s] + %f[%s] = %f[%s]" % (
                         conn_node, prev, self._to_hex(prev), pkt, self._to_hex(pkt), x[conn_node],
                         self._to_hex(x[conn_node])))

@@ -6,9 +6,14 @@ import tqdm
 
 from examples.page_rank import PageRankSimulation, LOG_LEVEL_PAGE_RANK_INFO
 
-RUN_TIME = 50.
+N_ITER = 20.
+timestep = 100.
+RUN_TIME = N_ITER * timestep
 PARAMETERS = {
-    'time_scale_factor': 100
+    'time_scale_factor': 10.,
+    'timestep': timestep,
+    'min_delay': timestep,
+    'max_delay': timestep
 }
 
 
@@ -49,7 +54,7 @@ def _mk_sim_run(node_count, edge_count, pause_incorrect, show_out):
     ###############################################################################
     # Run simulation / report
     with PageRankSimulation(RUN_TIME, edges, labels=labels, parameters=PARAMETERS,
-                            log_level=LOG_LEVEL_PAGE_RANK_INFO) as sim:
+                            log_level=10) as sim:
         is_correct = sim.run(verify=True)
         sim.draw_output_graph(show_graph=show_out, pause=(not is_correct) and pause_incorrect)
         return is_correct

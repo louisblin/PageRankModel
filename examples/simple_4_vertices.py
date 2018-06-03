@@ -3,7 +3,7 @@ import sys
 
 from examples.page_rank import PageRankSimulation
 
-RUN_TIME = 100.
+RUN_TIME = 16.
 
 
 def run(show_in=False, show_out=False):

@@ -68,7 +68,7 @@ void neuron_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t 
     neuron->curr_rank_acc   += contrib.asFract;
     neuron->curr_rank_count += 1;
 
-    log_info("[idx=%03u] neuron_model_state_update: %k/%d + %k = %k/%d [exp=%d]", idx,
+    log_debug("[idx=%03u] neuron_model_state_update: %k/%d + %k = %k/%d [exp=%d]", idx,
         K(prev_rank_acc), prev_rank_count, K(contrib.asFract), K(neuron->curr_rank_acc),
         neuron->curr_rank_count, neuron->incoming_edges_count);
 
