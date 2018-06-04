@@ -18,6 +18,7 @@ RANK = 'v'
 NX_NODE_SIZE = 350
 ITER_BITS = 3  # see c_models/src/common/in_spikes.h
 FLOAT_PRECISION = 5
+TOL = 10**(-FLOAT_PRECISION)
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
 DEFAULT_SPYNNAKER_PARAMS = {
     'timestep': 1.,
@@ -131,16 +132,28 @@ class PageRankSimulation:
     def _float_formatter(number):
         return ("%.{}f".format(FLOAT_PRECISION)) % number
 
-    def _get_ranks_string(self, ranks):
+    def _get_ranks_string(self, ranks, diff_only=False):
         """Pretty prints a table of ranks values
 
         :param ranks: dict of name-indexed rows of values, or list of a single row of values
         :return: None
         """
-        # Multiple rows, indexed by row name
-        table = PrettyTable([''] + map(self._node_formatter, self._labels))
-        for name, row in ranks.items():
-            table.add_row([name] + map(self._float_formatter, row))
+        if diff_only and len(ranks) == 2:
+            # Filter out valid ranks
+            [(lbl1, row_1), (lbl2, row_2)] = ranks.items()
+            diff_idx = [i for i, (r1, r2) in enumerate(zip(row_1, row_2)) if abs(r1 - r2) >= TOL]
+            labels = [self._labels[i] for i in diff_idx]
+            row_1  = [row_1[i] for i in diff_idx]
+            row_2  = [row_2[i] for i in diff_idx]
+            # Contruct table
+            table = PrettyTable([''] + map(self._node_formatter, labels))
+            table.add_row([lbl1] + map(self._float_formatter, row_1))
+            table.add_row([lbl2] + map(self._float_formatter, row_2))
+        else:
+            # Multiple rows, indexed by row name
+            table = PrettyTable([''] + map(self._node_formatter, self._labels))
+            for name, row in ranks.items():
+                table.add_row([name] + map(self._float_formatter, row))
 
         return table.get_string()
 
@@ -191,12 +204,11 @@ class PageRankSimulation:
             # Compute convergence
             xlast = ranks[0]
             N = len(xlast)
-            tol = 10**(-FLOAT_PRECISION)
             convergence = len(ranks)
 
             for it, x in enumerate(ranks[1:]):
                 err = sum([abs(x_i - xlast_i) for x_i, xlast_i in zip(x, xlast)])
-                if err < N * tol:
+                if err < N * TOL:
                     convergence = it+1  # since we began at index #1
                     break
                 xlast = x
@@ -205,8 +217,7 @@ class PageRankSimulation:
             for i in range(convergence + 1, len(ranks)):
                 ranks[i, :] = ranks[convergence, :]
 
-            self._sim_ranks = ranks
-            self._sim_convergence = convergence
+            self._sim_ranks, self._sim_convergence = ranks, convergence
         return self._sim_ranks, self._sim_convergence
 
     @staticmethod
@@ -245,7 +256,7 @@ class PageRankSimulation:
 
         # Init fixed-point constants
         d = self._to_fp(self._get_damping_factor())
-        tol = self._to_fp(10**(-FLOAT_PRECISION))
+        tol = self._to_fp(TOL)
         ZERO = self._to_fp(0)
         ONE = self._to_fp(1.)
         N = self._to_fp(N)
@@ -290,7 +301,7 @@ class PageRankSimulation:
                 return x, iter + 1  # iter t+1 happens at the end of time t
         raise nx.PowerIterationFailedConvergence(max_iter)
 
-    def _verify_sim(self):
+    def _verify_sim(self, verify, diff_only=False):
         """Verifies simulation results correctness.
 
         Checks the ranks results from the simulation match those given by a Python implementation of
@@ -301,28 +312,34 @@ class PageRankSimulation:
         msg = "\n"
 
         # Get last row of the ranks computed in the simulation
+        _log_info("Extracting computed ranks...")
         computed_ranks, it = self._extract_sim_ranks()
         computed_ranks = computed_ranks[-1]
         msg += "[SpiNNaker] Convergence < 10e-%d in #%d iterations.\n" % (FLOAT_PRECISION, it)
 
+        if not verify:
+            return True, msg + "Correctness unchecked."
+
         # Get Page Rank from python implementation
+        _log_info("Computing Page Rank...")
         expected_ranks, it = self._compute_page_rank()
         msg += "[Python PR] Convergence < 10e-%d in #%d iterations.\n" % (FLOAT_PRECISION, it)
 
         # Compare at defined precision
-        is_correct = np.allclose(computed_ranks, expected_ranks, atol=10**(-FLOAT_PRECISION))
+        is_correct = np.allclose(computed_ranks, expected_ranks, atol=TOL)
 
         if is_correct:
-            msg += ("CORRECT Page Rank results.\n" +
-                    self._get_ranks_string({
-                        'Computed': computed_ranks
-                    }))
+            msg += "CORRECT Page Rank results.\n"
+            if not diff_only:
+                msg += self._get_ranks_string({
+                    'Computed': computed_ranks
+                })
         else:
             msg += ("INCORRECT Page Rank results.\n" +
                     self._get_ranks_string({
                         'Computed': computed_ranks,
                         'Expected': expected_ranks
-                    }))
+                    }, diff_only))
 
         return is_correct, msg
 
@@ -330,7 +347,7 @@ class PageRankSimulation:
     # Exposed functions
     #
 
-    def run(self, verify=False):
+    def run(self, verify=False, **kwargs):
         """Runs the simulation.
 
         :param verify: check the results with a Page Rank python implementation.
@@ -346,10 +363,7 @@ class PageRankSimulation:
             self._model.record([RANK])
 
             p.run(self._run_time)
-
-            if verify:
-                return self._verify_sim()
-            return True, ""
+            return self._verify_sim(verify, **kwargs)
 
         is_correct, msg = _run()
         _log_info(msg)
