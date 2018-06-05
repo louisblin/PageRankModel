@@ -157,10 +157,11 @@ static inline void _setup_synaptic_dma_read() {
 /* CALLBACK FUNCTIONS - cannot be static */
 
 // Called when a multicast packet is received
-// pre-condition: packet
 void _mcpl_pkt_received_callback(uint key, uint payload) {
+#if LOG_LEVEL >= LOG_DEBUG
     log_debug("%6s[t=%04u|#%03d] Received pkt 0x%08x=%k,0x%08x",
               "", time, (0xff & key), key, K(payload), payload);
+#endif
 
     // If there was space to add spike to incoming spike queue
     if (_add_key_payload(key, payload)) {
@@ -169,14 +170,18 @@ void _mcpl_pkt_received_callback(uint key, uint payload) {
         // flag pipeline as busy and trigger a feed event
         if (!dma_busy) {
 
+#if LOG_LEVEL >= LOG_DEBUG
             log_debug("Sending user event for new spike");
+#endif
             if (spin1_trigger_user_event(0, 0)) {
                 dma_busy = true;
-            } else {
+            }
+            else {
                 log_debug("Could not trigger user event\n");
             }
         }
-    } else {
+    }
+    else {
         log_debug("Could not add spike");
     }
 }
@@ -287,8 +292,8 @@ payload_t spike_processing_payload_format(payload_t payload) {
 }
 
 //! \brief forwards increment to in_spike
-void spike_processing_increment_iteration_number(void) {
-    in_spikes_increment_iteration_number();
+uint32_t spike_processing_increment_iteration_number(void) {
+    return in_spikes_increment_iteration_number();
 }
 
 

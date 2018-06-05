@@ -21,8 +21,11 @@ FLOAT_PRECISION = 5
 TOL = 10**(-FLOAT_PRECISION)
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
 DEFAULT_SPYNNAKER_PARAMS = {
-    'timestep': 1.,
-    'time_scale_factor': 5
+    'timestep': .1,
+    'time_scale_factor': 10,
+    # Range of random delays between synapse transmission: set to minimum as we don't want to wait
+    'min_delay': .1,
+    'max_delay': .1
 }
 
 logger = logging.getLogger(__name__)
@@ -57,7 +60,7 @@ def check_sim_ran(func):
 class PageRankSimulation:
 
     def __init__(self, run_time, edges, labels=None, parameters=None, damping=.85,
-                 log_level=logging.INFO):
+                 log_level=logging.INFO, pause=False):
         self._validate_graph_structure(edges, labels, damping)
 
         # Simulation parameters
@@ -69,6 +72,7 @@ class PageRankSimulation:
         self._parameters   = DEFAULT_SPYNNAKER_PARAMS
         self._parameters.update(parameters or {})
         self._damping      = damping
+        self._pause        = pause
 
         # Simulation state variables
         self._model = None
@@ -88,6 +92,9 @@ class PageRankSimulation:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._pause:
+            raw_input('Press any key to finish...')
+
         if exc_type is None:
             p.end()  # fails on sPyNNaker runtime error
         # else, exception is cascaded if there is one...
@@ -375,35 +382,36 @@ class PageRankSimulation:
         :param show_graph: whether to display the graph, default is False
         :return: None
         """
-        _log_info("Displaying input graph. "
-                  "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
-        # Clear plot
-        plt.clf()
 
         # Graph structure
         G = nx.Graph().to_directed()
         G.add_edges_from(self._edges)
 
-        # Graph layout
-        pos = nx.layout.spring_layout(G)
-        nx.draw_networkx_nodes(G, pos, node_size=NX_NODE_SIZE, node_color='red')
-        nx.draw_networkx_edges(G, pos, arrowstyle='->')
-        nx.draw_networkx_labels(G, pos, font_color='white', font_weight='bold')
-        self_loops = G.nodes_with_selfloops()
-        nx.draw_networkx_nodes(self_loops, pos, node_size=NX_NODE_SIZE, node_color='black')
-
         # Save graph for Page Rank python computations
         self._input_graph = G
 
-        # Show graph
         if show_graph:
+            _log_info("Displaying input graph. "
+                      "Check DISPLAY={} if this hangs...".format(os.getenv('DISPLAY')))
+            # Clear plot
+            plt.clf()
+
+            # Graph layout
+            pos = nx.layout.spring_layout(G)
+            nx.draw_networkx_nodes(G, pos, node_size=NX_NODE_SIZE, node_color='red')
+            nx.draw_networkx_edges(G, pos, arrowstyle='->')
+            nx.draw_networkx_labels(G, pos, font_color='white', font_weight='bold')
+            self_loops = G.nodes_with_selfloops()
+            nx.draw_networkx_nodes(self_loops, pos, node_size=NX_NODE_SIZE, node_color='black')
+
+            # Show graph
             plt.gca().set_axis_off()
             plt.suptitle('Input graph for Page Rank')
             plt.title('Black nodes are self-looping', fontsize=8)
             plt.show()
 
     @check_sim_ran
-    def draw_output_graph(self, show_graph=True, pause=False):
+    def draw_output_graph(self, show_graph=True):
         """Displays the computed rank over time.
 
         Note: pausing the simulation before it ends and is unloaded from the SpiNNaker chips allows
@@ -411,7 +419,6 @@ class PageRankSimulation:
         (see SpiNNakerManchester/spinnaker_tools)
 
         :param show_graph: whether to display the graph, default is False
-        :param pause: whether to pause the simulation after showing results, default is False
         :return: None
         """
         ranks, _ = self._extract_sim_ranks()
@@ -433,9 +440,6 @@ class PageRankSimulation:
             plt.suptitle("Rank over time")
             plt.title(ANNOTATION, fontsize=6)
             plt.show()
-
-        if pause:
-            raw_input('Press any key to finish...')
 
 #
 # Utility functions

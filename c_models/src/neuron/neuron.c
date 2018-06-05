@@ -246,16 +246,16 @@ void neuron_do_timestep_update(timer_t time) {
     // Check if all neurons have completed their iteration
     // Note: important to skip first iteration otherwise ranks will be erased
     if (0 < time && sark_app_sema() == 0) {
-        log_info("=> Iteration will start.");
+        // Buffer for incoming packets
+        uint32_t iter_no = spike_processing_increment_iteration_number();
+
+        log_info("=> Iteration #%u will start.", iter_no);
 
         // Neuron model
         for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
             neuron_pointer_t neuron = &neuron_array[neuron_index];
             neuron_model_iteration_did_finish(neuron);
         }
-
-        // Buffer for incoming packets
-        spike_processing_increment_iteration_number();
 
         _print_neurons();
     } else {
@@ -317,6 +317,7 @@ void neuron_do_timestep_update(timer_t time) {
                 log_debug("%16s[t=%04u|#%03d] Sending pkt  0x%08x=%k,0x%08x[sent=%k,0x%08x]",
                          "", time, neuron_index, k, K(broadcast_rank), broadcast_rank, K(p), p);
                 while (!spin1_send_mc_packet(k, p, WITH_PAYLOAD)) {
+                    log_warning("%16s[t=%04u|#%03d] Sending error...", "", time, neuron_index);
                     spin1_delay_us(1);
                 }
             }

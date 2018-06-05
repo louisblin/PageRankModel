@@ -55,7 +55,7 @@ static inline circular_buffer _get_buffer_for_iter(uint32_t iter_no) {
 }
 
 // pre-condition: assumes we get a call for each new time step
-static inline void in_spikes_increment_iteration_number() {
+static inline uint32_t in_spikes_increment_iteration_number() {
     circular_buffer buffer = _get_buffer_for_iter(curr_iter);
     log_info("in_spikes_increment_iteration_number [#%u]: enter buff=0x%08x", curr_iter, buffer);
 
@@ -70,6 +70,8 @@ static inline void in_spikes_increment_iteration_number() {
     curr_iter++;
     log_info("in_spikes_increment_iteration_number [#%u]: leave buff=0x%08x", curr_iter,
              _get_buffer_for_iter(curr_iter));
+
+    return curr_iter;
 }
 
 //

@@ -27,7 +27,7 @@ inline void _finish(neuron_pointer_t neuron) {
     // Lowers a semaphore associated with the AppID running on this core.
     sark_app_lower();
     CHECKPOINT_SAVE(neuron, FINISHED);
-    log_info("[idx=   ] neuron_model_state_update: iteration completed (%k)",
+    log_debug("[idx=   ] neuron_model_state_update: iteration completed (%k)",
         K(neuron->curr_rank_acc));
 }
 

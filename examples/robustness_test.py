@@ -6,8 +6,8 @@ import tqdm
 
 from examples.page_rank import PageRankSimulation, LOG_LEVEL_PAGE_RANK_INFO
 
-N_ITER = 24
-timestep = 1.
+N_ITER = 15
+timestep = .1
 RUN_TIME = N_ITER * timestep
 PARAMETERS = {
     # Experimental results of good values
@@ -15,10 +15,7 @@ PARAMETERS = {
     # |V|=800  |E|=1200  : ts=1. tsf=45
     # |V|=1600 |E|=2400  : ts=1. tsf=150
     # |V|=3200 |E|=4800  : ts=?  tsf=?
-    'timestep': timestep,
-    'time_scale_factor': 150,
-    'min_delay': 5*timestep,
-    'max_delay': 10*timestep
+    'time_scale_factor': 20000,
 }
 
 
@@ -27,7 +24,7 @@ def _mk_label(n):
 
 
 def _mk_rd_node(node_count):
-    return _mk_label(random.randint(0, node_count - 1))
+    return random.randint(0, node_count - 1)
 
 
 def _mk_graph(node_count, edge_count):
@@ -35,24 +32,28 @@ def _mk_graph(node_count, edge_count):
     assert node_count <= edge_count <= node_count**2, \
         "Need node_count=%d < edge_count=%d < %d " % (node_count, edge_count, node_count**2)
 
-    edges = []
+    # Ensures no double edges
+    edges = set([])
 
     # Ensures no dangling nodes
     for i in range(node_count):
-        edges.append((_mk_label(i), _mk_rd_node(node_count)))
+        edges.add((i, _mk_rd_node(node_count)))
 
-    for _ in range(node_count, edge_count):
+    for _ in tqdm.tqdm(range(node_count, edge_count), desc="Generating edges",
+                       initial=node_count, total=edge_count):
         while True:
-            edge = (_mk_rd_node(node_count), _mk_rd_node(node_count))
-            # Ensures no double edges
-            if edge not in edges:
-                edges.append(edge)
-                break
+            l = len(edges)
+            edges.add((_mk_rd_node(node_count), _mk_rd_node(node_count)))
+            if len(edges) > l:
+                break  # Only move to next iteration if we've added a new edge
+
+    edges = [(_mk_label(src), _mk_label(tgt))
+             for src, tgt in tqdm.tqdm(edges, desc="Formatting edges")]
+
     return edges
 
 
-def _mk_sim_run(node_count=None, edge_count=None, verify=False, pause=False, pause_incorrect=False,
-                show_out=False):
+def _mk_sim_run(node_count=None, edge_count=None, verify=False, pause=False, show_out=False):
     ###############################################################################
     # Create random Page Rank graphs
     labels = map(_mk_label, list(range(node_count)))
@@ -60,10 +61,9 @@ def _mk_sim_run(node_count=None, edge_count=None, verify=False, pause=False, pau
 
     ###############################################################################
     # Run simulation / report
-    with PageRankSimulation(RUN_TIME, edges, labels, PARAMETERS, log_level=10) as sim:
+    with PageRankSimulation(RUN_TIME, edges, labels, PARAMETERS, log_level=0, pause=pause) as sim:
         is_correct = sim.run(verify=verify, diff_only=True)
-        pause = pause or pause_incorrect and not is_correct
-        sim.draw_output_graph(show_graph=show_out, pause=pause)
+        sim.draw_output_graph(show_graph=show_out)
         return is_correct
 
 
@@ -88,8 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('edge_count', metavar='EDGE_COUNT', type=int, help='# edges per graph')
     parser.add_argument('-v', '--verify', action='store_true', help='Verify sim w/ Python PR impl')
     parser.add_argument('-p', '--pause', action='store_true', help='Pause after each runs')
-    parser.add_argument('--pause-incorrect', action='store_true', help='Pause after incorrect runs')
-    parser.add_argument('--show-out', action='store_true', help='Display ranks curves output')
+    parser.add_argument('-o', '--show-out', action='store_true', help='Display ranks curves output')
 
     random.seed(42)
     sys.exit(run(**vars(parser.parse_args())))
