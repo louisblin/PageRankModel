@@ -27,7 +27,7 @@ inline void _finish(neuron_pointer_t neuron) {
     // Lowers a semaphore associated with the AppID running on this core.
     sark_app_lower();
     CHECKPOINT_SAVE(neuron, FINISHED);
-    log_info("[idx=   ] neuron_model_state_update: iteration completed (%k)",
+    log_debug("[idx=   ] neuron_model_state_update: iteration completed (%k)",
         K(neuron->curr_rank_acc));
 }
 
@@ -68,7 +68,7 @@ void neuron_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t 
     neuron->curr_rank_acc   += contrib.asFract;
     neuron->curr_rank_count += 1;
 
-    log_info("[idx=%03u] neuron_model_state_update: %k/%d + %k = %k/%d [exp=%d]", idx,
+    log_debug("[idx=%03u] neuron_model_state_update: %k/%d + %k = %k/%d [exp=%d]", idx,
         K(prev_rank_acc), prev_rank_count, K(contrib.asFract), K(neuron->curr_rank_acc),
         neuron->curr_rank_count, neuron->incoming_edges_count);
 

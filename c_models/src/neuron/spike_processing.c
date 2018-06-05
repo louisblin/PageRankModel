@@ -3,7 +3,7 @@
 #include "models/neuron_model_page_rank.h"
 #include <neuron/population_table/population_table.h>
 #include <neuron/synapse_row.h>
-#include <common/in_spikes.h>
+#include "../common/in_spikes.h"
 #include <simulation.h>
 #include <spin1_api.h>
 #include <debug.h>
@@ -51,17 +51,7 @@ static uint32_t single_fixed_synapse[4];
 /* PRIVATE FUNCTIONS - static for inlining */
 
 static inline bool _add_key_payload(uint key, uint payload) {
-    if(!in_spikes_add_spike(key)) {
-        return false;
-    }
-
-    if (!in_spikes_add_spike(payload)) {
-        log_error(
-            "_add_key_payload inconsistency: expected in_spikes items to be addable by "
-            "pair (%03d[%08x]=%3.3k[%08])", (0xff & key), key, payload, payload);
-        return false;
-    }
-    return true;
+    return in_spikes_add_key_payload(key, payload);
 }
 
 static inline bool _get_key_payload() {
@@ -167,26 +157,31 @@ static inline void _setup_synaptic_dma_read() {
 /* CALLBACK FUNCTIONS - cannot be static */
 
 // Called when a multicast packet is received
-// pre-condition: packet
 void _mcpl_pkt_received_callback(uint key, uint payload) {
-    log_info("%6s[t=%04u|#%03d] Received pkt 0x%08x=%k", "", time, (0xff & key), key, K(payload));
+#if LOG_LEVEL >= LOG_DEBUG
+    log_debug("%6s[t=%04u|#%03d] Received pkt 0x%08x=%k,0x%08x",
+              "", time, (0xff & key), key, K(payload), payload);
+#endif
 
     // If there was space to add spike to incoming spike queue
-    // Note: assuming second add cannot fail as buffer size is a multiple of 2 x sizeof(uint32_t)
     if (_add_key_payload(key, payload)) {
 
         // If we're not already processing synaptic DMAs,
         // flag pipeline as busy and trigger a feed event
         if (!dma_busy) {
 
+#if LOG_LEVEL >= LOG_DEBUG
             log_debug("Sending user event for new spike");
+#endif
             if (spin1_trigger_user_event(0, 0)) {
                 dma_busy = true;
-            } else {
+            }
+            else {
                 log_debug("Could not trigger user event\n");
             }
         }
-    } else {
+    }
+    else {
         log_debug("Could not add spike");
     }
 }
@@ -265,6 +260,7 @@ bool spike_processing_initialise(
     max_n_words = row_max_n_words;
 
     // Allocate incoming spike buffer
+    // TODO: re-compute this
     if (!in_spikes_initialize_spike_buffer(incoming_spike_buffer_size)) {
         return false;
     }
@@ -287,3 +283,17 @@ bool spike_processing_initialise(
 uint32_t spike_processing_get_buffer_overflows() {
     return in_spikes_get_n_buffer_overflows();
 }
+
+// Use state from spike_processing, don't inline nor static
+
+//! \brief forwards increment to in_spike
+payload_t spike_processing_payload_format(payload_t payload) {
+    return in_spikes_payload_format(payload);
+}
+
+//! \brief forwards increment to in_spike
+uint32_t spike_processing_increment_iteration_number(void) {
+    return in_spikes_increment_iteration_number();
+}
+
+

@@ -5,6 +5,7 @@
  */
 
 #include "neuron.h"
+#include "spike_processing.h"
 #include "models/neuron_model_page_rank.h"
 #include <neuron/synapse_types/synapse_types.h>
 #include <neuron/plasticity/synapse_dynamics.h>
@@ -40,7 +41,7 @@ static uint32_t n_neurons;
 //! The recording flags
 static uint32_t recording_flags;
 
-// The synapse shaping parameters
+//! The synapse shaping parameters
 static synapse_param_t *neuron_synapse_shaping_params;
 
 //! storage for neuron state with timestamp
@@ -245,11 +246,17 @@ void neuron_do_timestep_update(timer_t time) {
     // Check if all neurons have completed their iteration
     // Note: important to skip first iteration otherwise ranks will be erased
     if (0 < time && sark_app_sema() == 0) {
-        log_info("=> Iteration will start.");
+        // Buffer for incoming packets
+        uint32_t iter_no = spike_processing_increment_iteration_number();
+
+        log_info("=> Iteration #%u will start.", iter_no);
+
+        // Neuron model
         for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
             neuron_pointer_t neuron = &neuron_array[neuron_index];
             neuron_model_iteration_did_finish(neuron);
         }
+
         _print_neurons();
     } else {
         log_info("=> Iteration ongoing (%d).", sark_app_sema());
@@ -306,9 +313,11 @@ void neuron_do_timestep_update(timer_t time) {
 
                 // Send the spike
                 key_t k = key | neuron_index;
-                log_info("%16s[t=%04u|#%03d] Sending pkt  0x%08x=%k", "", time, neuron_index, k,
-                    K(broadcast_rank));
-                while (!spin1_send_mc_packet(k, broadcast_rank, WITH_PAYLOAD)) {
+                payload_t p = spike_processing_payload_format(broadcast_rank);
+                log_debug("%16s[t=%04u|#%03d] Sending pkt  0x%08x=%k,0x%08x[sent=%k,0x%08x]",
+                         "", time, neuron_index, k, K(broadcast_rank), broadcast_rank, K(p), p);
+                while (!spin1_send_mc_packet(k, p, WITH_PAYLOAD)) {
+                    log_warning("%16s[t=%04u|#%03d] Sending error...", "", time, neuron_index);
                     spin1_delay_us(1);
                 }
             }
