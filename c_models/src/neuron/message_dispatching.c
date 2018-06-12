@@ -1,5 +1,5 @@
-#include "synapses.h"
-#include "neuron.h"
+#include "message_dispatching.h"
+#include "vertex.h"
 #include <neuron/synapse_types/synapse_types.h>
 #include <neuron/plasticity/synapse_dynamics.h>
 #include <debug.h>
@@ -50,42 +50,32 @@ static inline void _print_synaptic_row(synaptic_row_t synaptic_row) {
 
 
 /* INTERFACE FUNCTIONS */
-bool synapses_initialise(
-        address_t synapse_params_address, address_t synaptic_matrix_address,
+bool message_dispatching_initialise(
+        address_t synaptic_matrix_address,
         uint32_t n_neurons_value,
-        synapse_param_t **neuron_synapse_shaping_params_value,
-        uint32_t **ring_buffer_to_input_buffer_left_shifts,
-        address_t *indirect_synapses_address,
-        address_t *direct_synapses_address) {
+        address_t *indirect_synapses_address) {
 
-    use(synapse_params_address);
-    use(neuron_synapse_shaping_params_value);
-    use(ring_buffer_to_input_buffer_left_shifts);
-    use(direct_synapses_address);
-
-//    log_info("synapses_initialise: starting");
+//    log_info("message_dispatching_initialise: starting");
 
     n_neurons = n_neurons_value;
 
     // Work out the positions of the direct and indirect synaptic matrices and copy the direct
     // matrix to DTCM
-//    uint32_t direct_matrix_offset = (synaptic_matrix_address[0] >> 2) + 1;
-//    log_info("Indirect matrix is %u words in size", direct_matrix_offset - 1);
     *indirect_synapses_address = &(synaptic_matrix_address[1]);
 
-    log_info("synapses_initialise: completed successfully");
+    log_info("message_dispatching_initialise: completed successfully");
 
     return true;
 }
 
-inline void synapses_do_timestep_update(timer_t time) {
+inline void message_dispatching_do_timestep_update(timer_t time) {
     use(time);
 }
 
 
 //! \brief processes incoming packets by forwarding them to their neuron.
 //!        Each event could cause up to 256 distinct neuron update
-bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, spike_t payload) {
+bool message_dispatching_process_synaptic_row_page_rank(synaptic_row_t row, spike_t payload) {
 
     _print_synaptic_row(row);
 
@@ -108,21 +98,21 @@ bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, spike_t payload
 
         // TODO: handle underflow
         log_debug("Neuron idx=%d receives payload = 0x%08x", combined_synapse_neuron_index, payload);
-        update_neuron_payload(combined_synapse_neuron_index, payload);
+        update_vertex_payload(combined_synapse_neuron_index, payload);
     }
     return true;
 }
 
-//! \brief returns the number of times the synapses have saturated their weights.
-//! \return the number of times the synapses have saturated.
-uint32_t synapses_get_saturation_count() {
+//! \brief returns the number of times the message_dispatching have saturated their weights.
+//! \return the number of times the message_dispatching have saturated.
+uint32_t message_dispatching_get_saturation_count() {
     return saturation_count;
 }
 
 //! \brief returns the counters for plastic and fixed pre synaptic events
 //!        based on (if the model was compiled with SYNAPSE_BENCHMARK parameter) or returns 0
 //! \return the counter for plastic and fixed pre synaptic events or 0
-uint32_t synapses_get_pre_synaptic_events() {
+uint32_t message_dispatching_get_pre_synaptic_events() {
     return (num_fixed_pre_synaptic_events +
             synapse_dynamics_get_plastic_pre_synaptic_events());
 }

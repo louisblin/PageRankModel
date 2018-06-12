@@ -1,5 +1,5 @@
 #include "message_processing.h"
-#include "synapses.h"
+#include "message_dispatching.h"
 #include "models/vertex_model_page_rank.h"
 #include <neuron/population_table/population_table.h>
 #include <neuron/synapse_row.h>
@@ -90,7 +90,7 @@ static inline void _do_direct_row(address_t row_address) {
     log_debug("_do_direct_row: row_address[0]=%u", ((uint32_t) row_address[0]));
 
     single_fixed_synapse[3] = (uint32_t) row_address[0];
-    synapses_process_synaptic_row_page_rank(single_fixed_synapse, spike_pkt_payload);
+    message_dispatching_process_synaptic_row_page_rank(single_fixed_synapse, spike_pkt_payload);
 }
 
 static inline void _setup_synaptic_dma_read() {
@@ -214,11 +214,11 @@ void _dma_complete_callback(uint unused, uint tag) {
         subsequent_spikes = in_messages_is_next_spike_equal(current_buffer->originating_spike_key);
         spike_t payload = current_buffer->originating_spike_payload;
 
-        log_debug("synapses_process_synaptic_row_page_rank(%d, 0x%08x, 0x%08x)", time,
+        log_debug("message_dispatching_process_synaptic_row_page_rank(%d, 0x%08x, 0x%08x)", time,
             current_buffer->row, payload);
 
         // Process packet
-        if (!synapses_process_synaptic_row_page_rank(current_buffer->row, payload)) {
+        if (!message_dispatching_process_synaptic_row_page_rank(current_buffer->row, payload)) {
             log_error("Error processing spike 0x%08x=0x%08x for local=0x%.8x",
                 current_buffer->originating_spike_key, payload, current_buffer->row);
 
@@ -265,7 +265,7 @@ bool message_processing_initialise(
         return false;
     }
 
-    // Set up for single fixed synapses (data that is consistent per direct row)
+    // Set up for single fixed message_dispatching (data that is consistent per direct row)
     single_fixed_synapse[0] = 0;
     single_fixed_synapse[1] = 1;
     single_fixed_synapse[2] = 0;

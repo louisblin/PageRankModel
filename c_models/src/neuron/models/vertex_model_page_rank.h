@@ -34,6 +34,7 @@ typedef struct global_neuron_params_t {
 
 } global_neuron_params_t;
 
+void vertex_model_set_global_neuron_params(global_neuron_params_pointer_t params);
 
 void vertex_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t neuron);
 

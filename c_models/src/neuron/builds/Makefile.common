@@ -16,9 +16,9 @@ EXTRA_STDP +=
 
 # Keep defaults if not overridden
 C_MAIN_C = $(EXTRA_SRC_DIR)/neuron/c_main.c
-NEURON_C = $(EXTRA_SRC_DIR)/neuron/neuron.c
+VERTEX_C = $(EXTRA_SRC_DIR)/neuron/vertex.c
 MESSAGE_PROCESSING_C = $(EXTRA_SRC_DIR)/neuron/message_processing.c
-SYNAPSES_C = $(EXTRA_SRC_DIR)/neuron/synapses.c
+MESSAGE_DISPATCHING_C = $(EXTRA_SRC_DIR)/neuron/message_dispatching.c
 
 # No-operation implementations, required by build process w/ sPyNNaker
 THRESHOLD_TYPE_H = $(EXTRA_SRC_DIR)/neuron/threshold_types/threshold_type_noop.h

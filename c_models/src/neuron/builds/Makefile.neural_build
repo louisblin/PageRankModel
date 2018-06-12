@@ -4,13 +4,13 @@ ifndef SPINN_DIRS
 endif
 
 ifeq ($(SPYNNAKER_DEBUG), DEBUG)
-    NEURON_DEBUG = LOG_DEBUG
+    VERTEX_DEBUG = LOG_DEBUG
     SYNAPSE_DEBUG = LOG_DEBUG
     PLASTIC_DEBUG = LOG_DEBUG
 endif
 
-ifndef NEURON_DEBUG
-    NEURON_DEBUG = LOG_INFO
+ifndef VERTEX_DEBUG
+    VERTEX_DEBUG = LOG_INFO
 endif
 
 ifndef SYNAPSE_DEBUG
@@ -42,19 +42,19 @@ ifdef TIMING_DEPENDENCE
     TIMING_DEPENDENCE_O = $(call build_dir, $(TIMING_DEPENDENCE))
 endif
 
-NEURON_O = $(call build_dir, $(NEURON_C))
+VERTEX_O = $(call build_dir, $(VERTEX_C))
 
 SOURCES = $(SOURCE_DIR)/common/out_spikes.c \
           $(C_MAIN_C) \
-          $(SYNAPSES_C) \
-          $(NEURON_C) \
+          $(MESSAGE_DISPATCHING_C) \
+          $(VERTEX_C) \
           $(MESSAGE_PROCESSING_C) \
 	      $(SOURCE_DIR)/neuron/population_table/population_table_$(POPULATION_TABLE_IMPL)_impl.c \
 	      $(VERTEX_MODEL) $(SYNAPSE_DYNAMICS) $(WEIGHT_DEPENDENCE) \
 	      $(TIMING_DEPENDENCE) $(OTHER_SOURCES)
 
 SYNAPSE_TYPE_SOURCES += $(C_MAIN_C) \
-                        $(SYNAPSES_C) \
+                        $(MESSAGE_DISPATCHING_C) \
                         $(MESSAGE_PROCESSING_C) \
                         $(SYNAPSE_DYNAMICS) \
                         $(SOURCE_DIR)/neuron/population_table/population_table_fixed_impl.c \
@@ -76,13 +76,13 @@ $(foreach obj, $(SYNAPSE_TYPE_SOURCES), $(eval $(call synapse_type_rule, $(obj))
 
 $(VERTEX_MODEL_O): $(VERTEX_MODEL)
 	-mkdir -p $(dir $@)
-	$(CC) -D__FILE__=\"$(notdir $*.c)\" -DLOG_LEVEL=$(NEURON_DEBUG) \
+	$(CC) -D__FILE__=\"$(notdir $*.c)\" -DLOG_LEVEL=$(VERTEX_DEBUG) \
 	        $(CFLAGS) -o $@ $<
 
-$(NEURON_O): $(NEURON_C) $(VERTEX_MODEL_H) \
+$(VERTEX_O): $(VERTEX_C) $(VERTEX_MODEL_H) \
                              $(SYNAPSE_TYPE_H)
 	-mkdir -p $(dir $@)
-	$(CC) -D__FILE__=\"neuron.c\" -DLOG_LEVEL=$(NEURON_DEBUG) $(CFLAGS) \
+	$(CC) -D__FILE__=\"neuron.c\" -DLOG_LEVEL=$(VERTEX_DEBUG) $(CFLAGS) \
 	      -include $(VERTEX_MODEL_H) \
 	      -include $(SYNAPSE_TYPE_H) \
 	      -include $(INPUT_TYPE_H) \

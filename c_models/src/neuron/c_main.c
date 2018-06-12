@@ -15,8 +15,8 @@
  */
 
 //#include "../common/in_spikes.h"
-#include "neuron.h"
-#include "synapses.h"
+#include "vertex.h"
+#include "message_dispatching.h"
 #include "message_processing.h"
 #include <neuron/population_table/population_table.h>
 #include <neuron/plasticity/synapse_dynamics.h>
@@ -92,8 +92,8 @@ void c_main_store_provenance_data(address_t provenance_region){
     log_debug("writing other provenance data");
 
     // store the data into the provenance data region
-    provenance_region[NUMBER_OF_PRE_SYNAPTIC_EVENT_COUNT] = synapses_get_pre_synaptic_events();
-    provenance_region[SYNAPTIC_WEIGHT_SATURATION_COUNT] = synapses_get_saturation_count();
+    provenance_region[NUMBER_OF_PRE_SYNAPTIC_EVENT_COUNT] = message_dispatching_get_pre_synaptic_events();
+    provenance_region[SYNAPTIC_WEIGHT_SATURATION_COUNT] = message_dispatching_get_saturation_count();
     provenance_region[INPUT_BUFFER_OVERFLOW_COUNT] = message_processing_get_buffer_overflows();
     provenance_region[CURRENT_TIMER_TICK] = time;
     log_debug("finished other provenance data");
@@ -132,45 +132,35 @@ static bool initialise(uint32_t *timer_period) {
         return false;
     }
 
-    // Set up the neurons
-    uint32_t n_neurons;
+    // Set up the vertices
+    uint32_t n_vertices;
     uint32_t incoming_spike_buffer_size;
-    if (!neuron_initialise(
+    if (!vertex_initialise(
             data_specification_get_region(NEURON_PARAMS_REGION, address),
-            recording_flags, &n_neurons, &incoming_spike_buffer_size)) {
+            recording_flags, &n_vertices, &incoming_spike_buffer_size)) {
         return false;
     }
 
-    // Set up the synapses
-    synapse_param_t *neuron_synapse_shaping_params;
-    uint32_t *ring_buffer_to_input_buffer_left_shifts;
+    // Set up the message_dispatching
     address_t indirect_synapses_address;
-    address_t direct_synapses_address;
-    if (!synapses_initialise(
-            data_specification_get_region(SYNAPSE_PARAMS_REGION, address),
+    if (!message_dispatching_initialise(
             data_specification_get_region(SYNAPTIC_MATRIX_REGION, address),
-            n_neurons, &neuron_synapse_shaping_params,
-            &ring_buffer_to_input_buffer_left_shifts,
-            &indirect_synapses_address, &direct_synapses_address)) {
+            n_vertices, &indirect_synapses_address)) {
         return false;
     }
-
-    // set the neuron up properly
-    neuron_set_neuron_synapse_shaping_params(neuron_synapse_shaping_params);
 
     // Set up the population table
     uint32_t row_max_n_words;
     if (!population_table_initialise(
             data_specification_get_region(POPULATION_TABLE_REGION, address),
-            indirect_synapses_address, direct_synapses_address,
-            &row_max_n_words)) {
+            indirect_synapses_address, 0, &row_max_n_words)) {
         return false;
     }
 
     // Set up the synapse dynamics
     if (!synapse_dynamics_initialise(
             data_specification_get_region(SYNAPSE_DYNAMICS_REGION, address),
-            n_neurons, ring_buffer_to_input_buffer_left_shifts)) {
+            n_vertices, 0)) {
         return false;
     }
 
@@ -191,12 +181,12 @@ static bool initialise(uint32_t *timer_period) {
 void resume_callback() {
     recording_reset();
 
-    // try reloading neuron parameters
+    // try reloading vertex parameters
     address_t address = data_specification_get_data_address();
-    if (!neuron_reload_neuron_parameters(
+    if (!vertex_reload_neuron_parameters(
             data_specification_get_region(
                 NEURON_PARAMS_REGION, address))) {
-        log_error("failed to reload the neuron parameters.");
+        log_error("failed to reload the vertex parameters.");
         rt_error(RTE_SWERR);
     }
 }
@@ -222,9 +212,9 @@ void timer_callback(uint timer_count, uint unused) {
 
         log_info("Completed a run");
 
-        // rewrite neuron params to sdram for reading out if needed
+        // rewrite vertex params to sdram for reading out if needed
         address_t address = data_specification_get_data_address();
-        neuron_store_neuron_parameters(
+        vertex_store_neuron_parameters(
             data_specification_get_region(NEURON_PARAMS_REGION, address));
 
         // Enter pause and resume state to avoid another tick
@@ -246,9 +236,9 @@ void timer_callback(uint timer_count, uint unused) {
         return;
     }
 
-    // otherwise do synapse and neuron time step updates
-    synapses_do_timestep_update(time);
-    neuron_do_timestep_update(time);
+    // otherwise do synapse and vertex time step updates
+    message_dispatching_do_timestep_update(time);
+    vertex_do_timestep_update(time);
 
     // trigger buffering_out_mechanism
     if (recording_flags > 0) {
