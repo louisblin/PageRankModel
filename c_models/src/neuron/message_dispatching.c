@@ -1,7 +1,5 @@
 #include "message_dispatching.h"
 #include "vertex.h"
-#include <neuron/synapse_types/synapse_types.h>
-#include <neuron/plasticity/synapse_dynamics.h>
 #include <debug.h>
 #include <spin1_api.h>
 #include <string.h>
@@ -113,6 +111,5 @@ uint32_t message_dispatching_get_saturation_count() {
 //!        based on (if the model was compiled with SYNAPSE_BENCHMARK parameter) or returns 0
 //! \return the counter for plastic and fixed pre synaptic events or 0
 uint32_t message_dispatching_get_pre_synaptic_events() {
-    return (num_fixed_pre_synaptic_events +
-            synapse_dynamics_get_plastic_pre_synaptic_events());
+    return num_fixed_pre_synaptic_events;
 }

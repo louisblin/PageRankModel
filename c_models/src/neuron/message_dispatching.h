@@ -3,6 +3,7 @@
 
 #include <common/neuron-typedefs.h>
 #include <neuron/synapse_row.h>
+#include <debug.h>
 
 // Get the index of the ring buffer for a given timestep and combined
 // synapse type and neuron index (as stored in a synapse row)
@@ -27,8 +28,7 @@ static inline input_t message_dispatching_convert_weight_to_input(
     return converter.output_type;
 }
 
-static inline void message_dispatching_print_weight(
-        weight_t weight, uint32_t left_shift) {
+static inline void message_dispatching_print_weight(weight_t weight, uint32_t left_shift) {
     if (weight != 0) {
         io_printf(IO_BUF, "%12.6k", message_dispatching_convert_weight_to_input(weight, left_shift));
     } else {

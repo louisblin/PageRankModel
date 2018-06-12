@@ -10,8 +10,13 @@ APP_OUTPUT_DIR := $(abspath $(CURRENT_DIR)../../../../python_models8/model_binar
 # Override some imported headers
 CFLAGS += -I$(NEURAL_MODELLING_DIRS)/src -Wno-type-limits
 
-EXTRA_SYNAPSE_TYPE_OBJECTS +=
-EXTRA_STDP += 
+# Number of bits required by the synapse type in the synapse row data structure
+# Note: must match the number returned by the python method get_n_synapse_type_bits
+CFLAGS += -DSYNAPSE_TYPE_BITS=0
+
+# Number of synapse types
+# Note: must match the number returned by the python method get_n_synapse_types
+CFLAGS += -DSYNAPSE_TYPE_COUNT=0
 
 
 # Keep defaults if not overridden
@@ -21,9 +26,6 @@ MESSAGE_PROCESSING_C = $(EXTRA_SRC_DIR)/neuron/message_processing.c
 MESSAGE_DISPATCHING_C = $(EXTRA_SRC_DIR)/neuron/message_dispatching.c
 
 # No-operation implementations, required by build process w/ sPyNNaker
-THRESHOLD_TYPE_H = $(EXTRA_SRC_DIR)/neuron/threshold_types/threshold_type_noop.h
-SYNAPSE_TYPE_H = $(EXTRA_SRC_DIR)/neuron/synapse_types/synapse_types_noop.h
-INPUT_TYPE_H = $(SOURCE_DIR)/neuron/input_types/input_type_current.h
 SYNAPSE_DYNAMICS = $(SOURCE_DIR)/neuron/plasticity/synapse_dynamics_static_impl.c
 
 

@@ -236,8 +236,8 @@ void _dma_complete_callback(uint unused, uint tag) {
 /* INTERFACE FUNCTIONS - cannot be static */
 
 bool message_processing_initialise(
-        size_t row_max_n_words, uint mc_pkt_callback_priority,
-        uint user_event_priority, uint incoming_spike_buffer_size) {
+        size_t row_max_n_words, uint32_t mc_pkt_callback_priority,
+        uint32_t user_event_priority, uint32_t incoming_spike_buffer_size) {
 
     // Check priority is -1, i.e. callback cannot be preempted
     if (mc_pkt_callback_priority != 0xffffffff) {

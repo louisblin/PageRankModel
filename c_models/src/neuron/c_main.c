@@ -19,7 +19,6 @@
 #include "message_dispatching.h"
 #include "message_processing.h"
 #include <neuron/population_table/population_table.h>
-#include <neuron/plasticity/synapse_dynamics.h>
 #include <neuron/profile_tags.h>
 
 #include <data_specification.h>
@@ -36,19 +35,19 @@
 #endif
 
 //! human readable definitions of each region in SDRAM
-typedef enum regions_e{
+typedef enum regions_e {
     SYSTEM_REGION,
-    NEURON_PARAMS_REGION,
-    SYNAPSE_PARAMS_REGION,
+    VERTEX_PARAMS_REGION,     // MAPS NEURON_PARAMS
+    SYNAPSE_PARAMS_REGION,    // Unused
     POPULATION_TABLE_REGION,
     SYNAPTIC_MATRIX_REGION,
-    SYNAPSE_DYNAMICS_REGION,
+    SYNAPSE_DYNAMICS_REGION,  // Unused
     RECORDING_REGION,
     PROVENANCE_DATA_REGION,
     PROFILER_REGION
 } regions_e;
 
-typedef enum extra_provenance_data_region_entries{
+typedef enum extra_provenance_data_region_entries {
     NUMBER_OF_PRE_SYNAPTIC_EVENT_COUNT = 0,
     SYNAPTIC_WEIGHT_SATURATION_COUNT = 1,
     INPUT_BUFFER_OVERFLOW_COUNT = 2,
@@ -56,7 +55,7 @@ typedef enum extra_provenance_data_region_entries{
 } extra_provenance_data_region_entries;
 
 //! values for the priority for each callback
-typedef enum callback_priorities{
+typedef enum callback_priorities {
     MC = -1, SDP_AND_DMA_AND_USER = 0, TIMER_AND_BUFFERING = 2
 } callback_priorities;
 
@@ -92,8 +91,10 @@ void c_main_store_provenance_data(address_t provenance_region){
     log_debug("writing other provenance data");
 
     // store the data into the provenance data region
-    provenance_region[NUMBER_OF_PRE_SYNAPTIC_EVENT_COUNT] = message_dispatching_get_pre_synaptic_events();
-    provenance_region[SYNAPTIC_WEIGHT_SATURATION_COUNT] = message_dispatching_get_saturation_count();
+    provenance_region[NUMBER_OF_PRE_SYNAPTIC_EVENT_COUNT] =
+        message_dispatching_get_pre_synaptic_events();
+    provenance_region[SYNAPTIC_WEIGHT_SATURATION_COUNT] =
+        message_dispatching_get_saturation_count();
     provenance_region[INPUT_BUFFER_OVERFLOW_COUNT] = message_processing_get_buffer_overflows();
     provenance_region[CURRENT_TIMER_TICK] = time;
     log_debug("finished other provenance data");
@@ -136,7 +137,7 @@ static bool initialise(uint32_t *timer_period) {
     uint32_t n_vertices;
     uint32_t incoming_spike_buffer_size;
     if (!vertex_initialise(
-            data_specification_get_region(NEURON_PARAMS_REGION, address),
+            data_specification_get_region(VERTEX_PARAMS_REGION, address),
             recording_flags, &n_vertices, &incoming_spike_buffer_size)) {
         return false;
     }
@@ -154,13 +155,6 @@ static bool initialise(uint32_t *timer_period) {
     if (!population_table_initialise(
             data_specification_get_region(POPULATION_TABLE_REGION, address),
             indirect_synapses_address, 0, &row_max_n_words)) {
-        return false;
-    }
-
-    // Set up the synapse dynamics
-    if (!synapse_dynamics_initialise(
-            data_specification_get_region(SYNAPSE_DYNAMICS_REGION, address),
-            n_vertices, 0)) {
         return false;
     }
 
@@ -184,8 +178,7 @@ void resume_callback() {
     // try reloading vertex parameters
     address_t address = data_specification_get_data_address();
     if (!vertex_reload_neuron_parameters(
-            data_specification_get_region(
-                NEURON_PARAMS_REGION, address))) {
+            data_specification_get_region(VERTEX_PARAMS_REGION, address))) {
         log_error("failed to reload the vertex parameters.");
         rt_error(RTE_SWERR);
     }
@@ -215,7 +208,7 @@ void timer_callback(uint timer_count, uint unused) {
         // rewrite vertex params to sdram for reading out if needed
         address_t address = data_specification_get_data_address();
         vertex_store_neuron_parameters(
-            data_specification_get_region(NEURON_PARAMS_REGION, address));
+            data_specification_get_region(VERTEX_PARAMS_REGION, address));
 
         // Enter pause and resume state to avoid another tick
         simulation_handle_pause_resume(resume_callback);
@@ -230,8 +223,7 @@ void timer_callback(uint timer_count, uint unused) {
         }
         profiler_finalise();
 
-        // Subtract 1 from the time so this tick gets done again on the next
-        // run
+        // Subtract 1 from the time so this tick gets done again on the next run
         time -= 1;
         return;
     }
@@ -263,8 +255,7 @@ void c_main(void) {
     time = UINT32_MAX;
 
     // Set timer tick (in microseconds)
-    log_info("setting timer tick callback for %d microseconds",
-              timer_period);
+    log_info("setting timer tick callback for %d microseconds", timer_period);
     spin1_set_timer_tick(timer_period);
 
     // Set up the timer tick callback (others are handled elsewhere)

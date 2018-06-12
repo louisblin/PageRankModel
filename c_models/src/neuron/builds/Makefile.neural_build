@@ -6,7 +6,6 @@ endif
 ifeq ($(SPYNNAKER_DEBUG), DEBUG)
     VERTEX_DEBUG = LOG_DEBUG
     SYNAPSE_DEBUG = LOG_DEBUG
-    PLASTIC_DEBUG = LOG_DEBUG
 endif
 
 ifndef VERTEX_DEBUG
@@ -15,10 +14,6 @@ endif
 
 ifndef SYNAPSE_DEBUG
     SYNAPSE_DEBUG = LOG_INFO
-endif
-
-ifndef PLASTIC_DEBUG
-    PLASTIC_DEBUG = LOG_INFO
 endif
 
 #POPULATION_TABLE_IMPL := fixed
@@ -34,13 +29,6 @@ ifndef VERTEX_MODEL_H
     $(error VERTEX_MODEL_H is not set.  Please select a neuron model header file)
 endif
 
-ifdef WEIGHT_DEPENDENCE
-    WEIGHT_DEPENDENCE_O = $(call build_dir, $(WEIGHT_DEPENDENCE))
-endif
-
-ifdef TIMING_DEPENDENCE
-    TIMING_DEPENDENCE_O = $(call build_dir, $(TIMING_DEPENDENCE))
-endif
 
 VERTEX_O = $(call build_dir, $(VERTEX_C))
 
@@ -50,8 +38,7 @@ SOURCES = $(SOURCE_DIR)/common/out_spikes.c \
           $(VERTEX_C) \
           $(MESSAGE_PROCESSING_C) \
 	      $(SOURCE_DIR)/neuron/population_table/population_table_$(POPULATION_TABLE_IMPL)_impl.c \
-	      $(VERTEX_MODEL) $(SYNAPSE_DYNAMICS) $(WEIGHT_DEPENDENCE) \
-	      $(TIMING_DEPENDENCE) $(OTHER_SOURCES)
+	      $(VERTEX_MODEL) $(SYNAPSE_DYNAMICS) $(OTHER_SOURCES)
 
 SYNAPSE_TYPE_SOURCES += $(C_MAIN_C) \
                         $(MESSAGE_DISPATCHING_C) \
@@ -64,11 +51,10 @@ SYNAPSE_TYPE_SOURCES += $(C_MAIN_C) \
 include $(SPINN_DIRS)/make/Makefile.SpiNNFrontEndCommon
 
 define synapse_type_rule
-$$(call build_dir, $(1)): $(1) $$(SYNAPSE_TYPE_H)
+$$(call build_dir, $(1)): $(1)
 	-mkdir -p $$(dir $$@)
 	$$(CC) -D__FILE__=\"$$(notdir $$*.c)\" -DLOG_LEVEL=$(SYNAPSE_DEBUG) \
 	        $$(CFLAGS) \
-	        -include $(SYNAPSE_TYPE_H) \
 	        -o $$@ $$<
 endef
 
@@ -79,11 +65,7 @@ $(VERTEX_MODEL_O): $(VERTEX_MODEL)
 	$(CC) -D__FILE__=\"$(notdir $*.c)\" -DLOG_LEVEL=$(VERTEX_DEBUG) \
 	        $(CFLAGS) -o $@ $<
 
-$(VERTEX_O): $(VERTEX_C) $(VERTEX_MODEL_H) \
-                             $(SYNAPSE_TYPE_H)
+$(VERTEX_O): $(VERTEX_C) $(VERTEX_MODEL_H)
 	-mkdir -p $(dir $@)
 	$(CC) -D__FILE__=\"neuron.c\" -DLOG_LEVEL=$(VERTEX_DEBUG) $(CFLAGS) \
-	      -include $(VERTEX_MODEL_H) \
-	      -include $(SYNAPSE_TYPE_H) \
-	      -include $(INPUT_TYPE_H) \
-	      -include $(THRESHOLD_TYPE_H) -o $@ $<
+	      -include $(VERTEX_MODEL_H) -o $@ $<

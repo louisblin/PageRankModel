@@ -7,8 +7,6 @@
 #include "vertex.h"
 #include "message_processing.h"
 #include "models/vertex_model_page_rank.h"
-#include <neuron/synapse_types/synapse_types.h>
-#include <neuron/plasticity/synapse_dynamics.h>
 #include <common/out_spikes.h>
 #include <common/maths-util.h>
 #include <recording.h>
@@ -62,7 +60,7 @@ static uint32_t n_recordings_outstanding = 0;
 //! readable form
 typedef enum parameters_in_vertex_parameter_data_region {
     RANDOM_BACK_OFF, TIME_BETWEEN_SPIKES, HAS_KEY, TRANSMISSION_KEY,
-    N_NEURONS_TO_SIMULATE, INCOMING_SPIKE_BUFFER_SIZE,
+    N_VERTICES_TO_SIMULATE, INCOMING_SPIKE_BUFFER_SIZE,
     START_OF_GLOBAL_PARAMETERS,
 } parameters_in_vertex_parameter_data_region;
 
@@ -158,7 +156,7 @@ bool vertex_initialise(address_t address, uint32_t recording_flags_param,
     }
 
     // Read the vertex details
-    n_vertices = address[N_NEURONS_TO_SIMULATE];
+    n_vertices = address[N_VERTICES_TO_SIMULATE];
     *n_vertices_value = n_vertices;
 
     // Read the size of the incoming spike buffer to use
@@ -287,9 +285,6 @@ void vertex_do_timestep_update(timer_t time) {
 
             // Get new rank
             payload_t broadcast_rank = vertex_model_get_broadcast_rank(vertex);
-
-            // Do any required synapse processing
-            synapse_dynamics_process_post_synaptic_event(time, vertex_index);
 
             // Record the spike
             out_spikes_set_spike(vertex_index);
