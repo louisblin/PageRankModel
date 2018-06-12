@@ -5,8 +5,8 @@
  */
 
 #include "neuron.h"
-#include "spike_processing.h"
-#include "models/neuron_model_page_rank.h"
+#include "message_processing.h"
+#include "models/vertex_model_page_rank.h"
 #include <neuron/synapse_types/synapse_types.h>
 #include <neuron/plasticity/synapse_dynamics.h>
 #include <common/out_spikes.h>
@@ -78,7 +78,7 @@ static inline void _print_neurons() {
     log_debug("-------------------------------------");
     for (index_t n = 0; n < n_neurons; n++) {
         log_debug("### Node %d ###", n);
-        neuron_model_print_state_variables(&(neuron_array[n]));
+        vertex_model_print_state_variables(&(neuron_array[n]));
     }
     log_debug("-------------------------------------\n");
 #endif // LOG_LEVEL >= LOG_DEBUG
@@ -92,7 +92,7 @@ static inline void _print_neuron_parameters() {
     log_debug("-------------------------------------");
     for (index_t n = 0; n < n_neurons; n++) {
         log_debug("### Node %d ###", n);
-        neuron_model_print_parameters(&(neuron_array[n]));
+        vertex_model_print_parameters(&(neuron_array[n]));
     }
     log_debug("-------------------------------------\n");
 #endif // LOG_LEVEL >= LOG_DEBUG
@@ -112,7 +112,7 @@ bool _neuron_load_neuron_parameters(address_t address){
     log_info("loading neuron local parameters");
     memcpy(neuron_array, &address[next], n_neurons * sizeof(neuron_t));
 
-    neuron_model_set_global_neuron_params(global_parameters);
+    vertex_model_set_global_neuron_params(global_parameters);
 
     return true;
 }
@@ -247,14 +247,14 @@ void neuron_do_timestep_update(timer_t time) {
     // Note: important to skip first iteration otherwise ranks will be erased
     if (0 < time && sark_app_sema() == 0) {
         // Buffer for incoming packets
-        uint32_t iter_no = spike_processing_increment_iteration_number();
+        uint32_t iter_no = message_processing_increment_iteration_number();
 
         log_info("=> Iteration #%u will start.", iter_no);
 
         // Neuron model
         for (index_t neuron_index = 0; neuron_index < n_neurons; neuron_index++) {
             neuron_pointer_t neuron = &neuron_array[neuron_index];
-            neuron_model_iteration_did_finish(neuron);
+            vertex_model_iteration_did_finish(neuron);
         }
 
         _print_neurons();
@@ -288,14 +288,14 @@ void neuron_do_timestep_update(timer_t time) {
         neuron_pointer_t neuron = &neuron_array[neuron_index];
 
         // Record the rank at the beginning of the iteration
-        ranks->states[neuron_index] = neuron_model_get_rank_as_real(neuron);
+        ranks->states[neuron_index] = vertex_model_get_rank_as_real(neuron);
 
-        if (neuron_model_should_send_pkt(neuron)) {
+        if (vertex_model_should_send_pkt(neuron)) {
             // Tell the neuron model
-            neuron_model_will_send_pkt(neuron);
+            vertex_model_will_send_pkt(neuron);
 
             // Get new rank
-            payload_t broadcast_rank = neuron_model_get_broadcast_rank(neuron);
+            payload_t broadcast_rank = vertex_model_get_broadcast_rank(neuron);
 
             // Do any required synapse processing
             synapse_dynamics_process_post_synaptic_event(time, neuron_index);
@@ -313,7 +313,7 @@ void neuron_do_timestep_update(timer_t time) {
 
                 // Send the spike
                 key_t k = key | neuron_index;
-                payload_t p = spike_processing_payload_format(broadcast_rank);
+                payload_t p = message_processing_payload_format(broadcast_rank);
                 log_debug("%16s[t=%04u|#%03d] Sending pkt  0x%08x=%k,0x%08x[sent=%k,0x%08x]",
                          "", time, neuron_index, k, K(broadcast_rank), broadcast_rank, K(p), p);
                 while (!spin1_send_mc_packet(k, p, WITH_PAYLOAD)) {
@@ -354,5 +354,5 @@ void neuron_do_timestep_update(timer_t time) {
 
 void update_neuron_payload(uint32_t neuron_index, spike_t payload) {
     neuron_pointer_t neuron = &neuron_array[neuron_index];
-    neuron_model_receive_packet(neuron_index, payload, neuron);
+    vertex_model_receive_packet(neuron_index, payload, neuron);
 }

@@ -24,30 +24,14 @@ endif
 #POPULATION_TABLE_IMPL := fixed
 POPULATION_TABLE_IMPL := binary_search
 
-ifndef NEURON_MODEL
-    $(error NEURON_MODEL is not set.  Please choose a neuron model to compile)
+ifndef VERTEX_MODEL
+    $(error VERTEX_MODEL is not set.  Please choose a neuron model to compile)
 else
-    NEURON_MODEL_O = $(call build_dir, $(NEURON_MODEL))
+    VERTEX_MODEL_O = $(call build_dir, $(VERTEX_MODEL))
 endif
 
-ifndef NEURON_MODEL_H
-    $(error NEURON_MODEL_H is not set.  Please select a neuron model header file)
-endif
-
-ifndef INPUT_TYPE_H
-    $(error INPUT_TYPE_H is not set.  Please select an input type header file)
-endif
-
-ifndef THRESHOLD_TYPE_H
-    $(error THRESHOLD_TYPE_H is not set.  Please select a threshold type header file)
-endif
-
-ifndef SYNAPSE_TYPE_H
-    $(error SYNAPSE_TYPE_H is not set.  Please select a synapse type header file)
-endif
-
-ifndef SYNAPSE_DYNAMICS
-    $(error SYNAPSE_DYNAMICS is not set.  Please select a synapse dynamics implementation)
+ifndef VERTEX_MODEL_H
+    $(error VERTEX_MODEL_H is not set.  Please select a neuron model header file)
 endif
 
 ifdef WEIGHT_DEPENDENCE
@@ -61,20 +45,21 @@ endif
 NEURON_O = $(call build_dir, $(NEURON_C))
 
 SOURCES = $(SOURCE_DIR)/common/out_spikes.c \
-          $(SOURCE_DIR)/neuron/c_main.c \
+          $(C_MAIN_C) \
           $(SYNAPSES_C) \
           $(NEURON_C) \
-          $(SPIKE_PROCESSING_C) \
+          $(MESSAGE_PROCESSING_C) \
 	      $(SOURCE_DIR)/neuron/population_table/population_table_$(POPULATION_TABLE_IMPL)_impl.c \
-	      $(NEURON_MODEL) $(SYNAPSE_DYNAMICS) $(WEIGHT_DEPENDENCE) \
+	      $(VERTEX_MODEL) $(SYNAPSE_DYNAMICS) $(WEIGHT_DEPENDENCE) \
 	      $(TIMING_DEPENDENCE) $(OTHER_SOURCES)
 
-SYNAPSE_TYPE_SOURCES += $(SOURCE_DIR)/neuron/c_main.c \
+SYNAPSE_TYPE_SOURCES += $(C_MAIN_C) \
                         $(SYNAPSES_C) \
-                        $(SPIKE_PROCESSING_C) \
+                        $(MESSAGE_PROCESSING_C) \
+                        $(SYNAPSE_DYNAMICS) \
                         $(SOURCE_DIR)/neuron/population_table/population_table_fixed_impl.c \
-                        $(SOURCE_DIR)/neuron/population_table/population_table_binary_search_impl.c \
-                        $(SOURCE_DIR)/neuron/plasticity/synapse_dynamics_static_impl.c
+                        $(SOURCE_DIR)/neuron/population_table/population_table_binary_search_impl.c
+
 
 include $(SPINN_DIRS)/make/Makefile.SpiNNFrontEndCommon
 
@@ -85,22 +70,20 @@ $$(call build_dir, $(1)): $(1) $$(SYNAPSE_TYPE_H)
 	        $$(CFLAGS) \
 	        -include $(SYNAPSE_TYPE_H) \
 	        -o $$@ $$<
-#	        -include $(EXTRA_SRC_DIR)/common/in_spikes.h \
-
 endef
 
 $(foreach obj, $(SYNAPSE_TYPE_SOURCES), $(eval $(call synapse_type_rule, $(obj))))
 
-$(NEURON_MODEL_O): $(NEURON_MODEL)
+$(VERTEX_MODEL_O): $(VERTEX_MODEL)
 	-mkdir -p $(dir $@)
 	$(CC) -D__FILE__=\"$(notdir $*.c)\" -DLOG_LEVEL=$(NEURON_DEBUG) \
 	        $(CFLAGS) -o $@ $<
 
-$(NEURON_O): $(NEURON_C) $(NEURON_MODEL_H) \
+$(NEURON_O): $(NEURON_C) $(VERTEX_MODEL_H) \
                              $(SYNAPSE_TYPE_H)
 	-mkdir -p $(dir $@)
 	$(CC) -D__FILE__=\"neuron.c\" -DLOG_LEVEL=$(NEURON_DEBUG) $(CFLAGS) \
-	      -include $(NEURON_MODEL_H) \
+	      -include $(VERTEX_MODEL_H) \
 	      -include $(SYNAPSE_TYPE_H) \
 	      -include $(INPUT_TYPE_H) \
 	      -include $(THRESHOLD_TYPE_H) -o $@ $<

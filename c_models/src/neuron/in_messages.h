@@ -1,6 +1,5 @@
-#ifndef _IN_SPIKES_H_
-// Overrides: sPyNNaker/neural_modelling/src/common/in_spikes.h
-#define _IN_SPIKES_H_
+#ifndef _IN_MESSAGES_H_
+#define _IN_MESSAGES_H_
 
 #include <common/neuron-typedefs.h>
 #include <circular_buffer.h>
@@ -30,15 +29,15 @@ static uint32_t curr_iter;
 // Payload manipulations
 //
 
-static inline payload_t in_spikes_payload_format(payload_t payload) {
+static inline payload_t in_messages_payload_format(payload_t payload) {
     return (payload_t) ((~ITER_MASK & payload) | (ITER_MASK & curr_iter));
 }
 
-static inline uint32_t in_spikes_payload_extract_iter(spike_t payload) {
+static inline uint32_t in_messages_payload_extract_iter(spike_t payload) {
     return (uint32_t) (ITER_MASK & payload);
 }
 
-static inline spike_t in_spikes_payload_extract_payload(spike_t payload) {
+static inline spike_t in_messages_payload_extract_payload(spike_t payload) {
     return (spike_t) (~ITER_MASK & payload);
 }
 
@@ -55,9 +54,9 @@ static inline circular_buffer _get_buffer_for_iter(uint32_t iter_no) {
 }
 
 // pre-condition: assumes we get a call for each new time step
-static inline uint32_t in_spikes_increment_iteration_number() {
+static inline uint32_t in_messages_increment_iteration_number() {
     circular_buffer buffer = _get_buffer_for_iter(curr_iter);
-    log_info("in_spikes_increment_iteration_number [#%u]: enter buff=0x%08x", curr_iter, buffer);
+    log_info("in_messages_increment_iteration_number [#%u]: enter buff=0x%08x", curr_iter, buffer);
 
     // Purge current buffer, should already be empty
     uint32_t remaining = circular_buffer_size(buffer);
@@ -68,7 +67,7 @@ static inline uint32_t in_spikes_increment_iteration_number() {
 
     // Prepare buffers management parameters for next iteration
     curr_iter++;
-    log_info("in_spikes_increment_iteration_number [#%u]: leave buff=0x%08x", curr_iter,
+    log_info("in_messages_increment_iteration_number [#%u]: leave buff=0x%08x", curr_iter,
              _get_buffer_for_iter(curr_iter));
 
     return curr_iter;
@@ -92,7 +91,7 @@ static inline uint32_t in_spikes_increment_iteration_number() {
 //
 // pre-condition:  buffer size is a multiple of 2 x sizeof(spike_t) to ensure key/payload can be
 //                 moved around as a pair.
-static inline bool in_spikes_initialize_spike_buffer(uint32_t size) {
+static inline bool in_messages_initialize_spike_buffer(uint32_t size) {
     // Ensure pre-condition holds
     if (size % (2 * sizeof(uint32_t)) != 0) {
         log_error("Expected a size to be a multiple of 2*sizeof(spike_t)=%u, but size=%u",
@@ -119,17 +118,17 @@ static inline bool in_spikes_initialize_spike_buffer(uint32_t size) {
     return true;
 }
 
-static inline bool in_spikes_add_key_payload(spike_t key, spike_t _payload) {
-    log_debug("in_spikes_add_key_payload [#%u]: (%03d[0x%08x] = %k[0x%08x])", curr_iter, key, key,
+static inline bool in_messages_add_key_payload(spike_t key, spike_t _payload) {
+    log_debug("in_messages_add_key_payload [#%u]: (%03d[0x%08x] = %k[0x%08x])", curr_iter, key, key,
               _payload, _payload);
 
-    uint32_t iter_no = in_spikes_payload_extract_iter(_payload);
-    spike_t  payload = in_spikes_payload_extract_payload(_payload);
-    log_debug("in_spikes_add_key_payload [#%u]: iter_no=%d, payload= 0x%08x=>0x%08x", curr_iter,
+    uint32_t iter_no = in_messages_payload_extract_iter(_payload);
+    spike_t  payload = in_messages_payload_extract_payload(_payload);
+    log_debug("in_messages_add_key_payload [#%u]: iter_no=%d, payload= 0x%08x=>0x%08x", curr_iter,
               iter_no, _payload, payload);
 
     circular_buffer buffer = _get_buffer_for_iter(iter_no);
-    log_debug("in_spikes_add_key_payload [#%u]: buff=0x%08x for it=%u", curr_iter, buffer, iter_no);
+    log_debug("in_messages_add_key_payload [#%u]: buff=0x%08x for it=%u", curr_iter, buffer, iter_no);
 
     // Add key to buffer
     if(!circular_buffer_add(buffer, key)) {
@@ -139,7 +138,7 @@ static inline bool in_spikes_add_key_payload(spike_t key, spike_t _payload) {
     // Add payload to buffer
     // Note: assuming second add cannot fail from initialization pre condition.
     if (!circular_buffer_add(buffer, payload)) {
-        log_error("in_spikes_add_key_payload [#%u]: inconsistency - expected in_spikes items to be "
+        log_error("in_messages_add_key_payload [#%u]: inconsistency - expected in_messages items to be "
                   "addable by pair (%03d[0x%08x] = %k[0x%08x]) for it=%u", curr_iter, (0xff & key),
                   key, payload, payload, iter_no);
         return false;
@@ -148,19 +147,19 @@ static inline bool in_spikes_add_key_payload(spike_t key, spike_t _payload) {
     return true;
 }
 
-static inline bool in_spikes_get_next_spike(spike_t* spike) {
+static inline bool in_messages_get_next_spike(spike_t* spike) {
     circular_buffer buffer = _get_buffer_for_iter(curr_iter);
-    log_debug("in_spikes_get_next_spike [#%u]: buffer=0x%08x", curr_iter, buffer);
+    log_debug("in_messages_get_next_spike [#%u]: buffer=0x%08x", curr_iter, buffer);
     return circular_buffer_get_next(buffer, spike);
 }
 
-static inline bool in_spikes_is_next_spike_equal(spike_t spike) {
+static inline bool in_messages_is_next_spike_equal(spike_t spike) {
     circular_buffer buffer = _get_buffer_for_iter(curr_iter);
-    log_debug("in_spikes_is_next_spike_equal [#%u]: buffer=0x%08x", curr_iter, buffer);
+    log_debug("in_messages_is_next_spike_equal [#%u]: buffer=0x%08x", curr_iter, buffer);
     return circular_buffer_advance_if_next_equals(buffer, spike);
 }
 
-static inline counter_t in_spikes_get_n_buffer_overflows() {
+static inline counter_t in_messages_get_n_buffer_overflows() {
     uint32_t acc = 0;
     for (uint32_t i = 0; i < N_ITER_BUFFERS; i++) {
         acc += circular_buffer_get_n_buffer_overflows(buffers[i]);
@@ -168,15 +167,15 @@ static inline counter_t in_spikes_get_n_buffer_overflows() {
     return acc;
 }
 
-static inline counter_t in_spikes_get_n_buffer_underflows() {
+static inline counter_t in_messages_get_n_buffer_underflows() {
     return 0;
 }
 
-static inline void in_spikes_print_buffer() {
+static inline void in_messages_print_buffer() {
     for (uint32_t i = curr_iter; i < N_ITER_BUFFERS; i++) {
-        log_debug("in_spikes buffer for iteration #%u", i);
+        log_debug("in_messages buffer for iteration #%u", i);
         circular_buffer_print_buffer(buffers[i]);
     }
 }
 
-#endif // _IN_SPIKES_H_
+#endif // _IN_MESSAGES_H_

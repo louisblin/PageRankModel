@@ -16,7 +16,7 @@ from examples.fixed_point import FXfamily
 LOG_LEVEL_PAGE_RANK_INFO = logging.INFO + 1
 RANK = 'v'
 NX_NODE_SIZE = 350
-ITER_BITS = 3  # see c_models/src/common/in_spikes.h
+ITER_BITS = 3  # see c_models/src/neuron/in_messages.h
 FLOAT_PRECISION = 5
 TOL = 10**(-FLOAT_PRECISION)
 ANNOTATION = 'Simulated with SpiNNaker_under_version(1!4.0.0-Riptalon)'
@@ -285,7 +285,7 @@ class PageRankSimulation:
                 for conn_node in W[node]:  # edge: node -> conn_node
                     prev = x[conn_node]
                     # Simulates payload-lossy encoding of the iteration
-                    # See c_models/src/common/in_spikes.h:in_spikes_payload_format
+                    # See c_models/src/neuron/in_messages.h:in_messages_payload_format
                     x[conn_node] += ((pkt >> ITER_BITS) << ITER_BITS)
                     logger.debug("[idx=%3s] %f[%s] + %f[%s] = %f[%s]" % (
                         conn_node, prev, self._to_hex(prev), pkt, self._to_hex(pkt), x[conn_node],

@@ -15,22 +15,15 @@ EXTRA_STDP +=
 
 
 # Keep defaults if not overridden
-ifndef NEURON_C
-    NEURON_C = $(SOURCE_DIR)/neuron/neuron.c
-endif
+C_MAIN_C = $(EXTRA_SRC_DIR)/neuron/c_main.c
+NEURON_C = $(EXTRA_SRC_DIR)/neuron/neuron.c
+MESSAGE_PROCESSING_C = $(EXTRA_SRC_DIR)/neuron/message_processing.c
+SYNAPSES_C = $(EXTRA_SRC_DIR)/neuron/synapses.c
 
-ifndef SPIKE_PROCESSING_C
-    SPIKE_PROCESSING_C = $(SOURCE_DIR)/neuron/spike_processing.c
-endif
-
-ifndef SYNAPSES_C
-    SYNAPSES_C = $(SOURCE_DIR)/neuron/synapses.c
-endif
-
-# Input type not used for Page Rank, but required for compilation
+# No-operation implementations, required by build process w/ sPyNNaker
+THRESHOLD_TYPE_H = $(EXTRA_SRC_DIR)/neuron/threshold_types/threshold_type_noop.h
+SYNAPSE_TYPE_H = $(EXTRA_SRC_DIR)/neuron/synapse_types/synapse_types_noop.h
 INPUT_TYPE_H = $(SOURCE_DIR)/neuron/input_types/input_type_current.h
-
-# Synapse dynamics type not used for Page Rank, but required for compilation
 SYNAPSE_DYNAMICS = $(SOURCE_DIR)/neuron/plasticity/synapse_dynamics_static_impl.c
 
 

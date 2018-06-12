@@ -83,8 +83,6 @@ inline void synapses_do_timestep_update(timer_t time) {
 }
 
 
-//spike_processing_finish_write
-
 //! \brief processes incoming packets by forwarding them to their neuron.
 //!        Each event could cause up to 256 distinct neuron update
 bool synapses_process_synaptic_row_page_rank(synaptic_row_t row, spike_t payload) {

@@ -1,4 +1,4 @@
-#include "neuron_model_page_rank.h"
+#include "vertex_model_page_rank.h"
 
 #include <common/maths-util.h>
 #include <debug.h>
@@ -18,7 +18,7 @@ static global_neuron_params_pointer_t global_params;
 #define CHECKPOINT_HAS(N, E)   (N->iter_state & (1 << E))
 
 
-void neuron_model_set_global_neuron_params(global_neuron_params_pointer_t params) {
+void vertex_model_set_global_neuron_params(global_neuron_params_pointer_t params) {
     global_params = params;
 }
 
@@ -27,7 +27,7 @@ inline void _finish(neuron_pointer_t neuron) {
     // Lowers a semaphore associated with the AppID running on this core.
     sark_app_lower();
     CHECKPOINT_SAVE(neuron, FINISHED);
-    log_debug("[idx=   ] neuron_model_state_update: iteration completed (%k)",
+    log_debug("[idx=   ] vertex_model_state_update: iteration completed (%k)",
         K(neuron->curr_rank_acc));
 }
 
@@ -50,7 +50,7 @@ inline void _has_received_all(neuron_pointer_t neuron) {
 }
 
 // Triggered when a packet is received
-void neuron_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t neuron) {
+void vertex_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t neuron) {
 
     // Decode key / payload
     index_t idx = (index_t) key;
@@ -68,7 +68,7 @@ void neuron_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t 
     neuron->curr_rank_acc   += contrib.asFract;
     neuron->curr_rank_count += 1;
 
-    log_debug("[idx=%03u] neuron_model_state_update: %k/%d + %k = %k/%d [exp=%d]", idx,
+    log_debug("[idx=%03u] vertex_model_state_update: %k/%d + %k = %k/%d [exp=%d]", idx,
         K(prev_rank_acc), prev_rank_count, K(contrib.asFract), K(neuron->curr_rank_acc),
         neuron->curr_rank_count, neuron->incoming_edges_count);
 
@@ -77,7 +77,7 @@ void neuron_model_receive_packet(input_t key, spike_t payload, neuron_pointer_t 
     }
 }
 
-payload_t neuron_model_get_broadcast_rank(neuron_pointer_t neuron) {
+payload_t vertex_model_get_broadcast_rank(neuron_pointer_t neuron) {
     union payloadSerializer {
         UFRACT asFract;
         payload_t asPayloadT;
@@ -91,7 +91,7 @@ payload_t neuron_model_get_broadcast_rank(neuron_pointer_t neuron) {
     return rank.asPayloadT;
 }
 
-REAL neuron_model_get_rank_as_real(neuron_pointer_t neuron) {
+REAL vertex_model_get_rank_as_real(neuron_pointer_t neuron) {
     union payloadSerializer {
         UFRACT asFract;
         REAL asReal;
@@ -100,12 +100,12 @@ REAL neuron_model_get_rank_as_real(neuron_pointer_t neuron) {
     return rank.asReal;
 }
 
-bool neuron_model_should_send_pkt(neuron_pointer_t neuron) {
+bool vertex_model_should_send_pkt(neuron_pointer_t neuron) {
     return !CHECKPOINT_HAS(neuron, FINISHED) && !CHECKPOINT_HAS(neuron, SENT_PACKET);
 }
 
 // Perform operations required to reset the state after a spike
-void neuron_model_will_send_pkt(neuron_pointer_t neuron) {
+void vertex_model_will_send_pkt(neuron_pointer_t neuron) {
     if (neuron->incoming_edges_count > 0) {
         _has_sent_packet(neuron);
     } else {
@@ -114,7 +114,7 @@ void neuron_model_will_send_pkt(neuron_pointer_t neuron) {
     }
 }
 
-void neuron_model_iteration_did_finish(neuron_pointer_t neuron) {
+void vertex_model_iteration_did_finish(neuron_pointer_t neuron) {
     neuron->rank = global_params->damping_sum
                  + global_params->damping_factor * neuron->curr_rank_acc;
     neuron->curr_rank_acc = 0;
@@ -122,14 +122,14 @@ void neuron_model_iteration_did_finish(neuron_pointer_t neuron) {
     CHECKPOINT_RESET(neuron);
 }
 
-void neuron_model_print_state_variables(restrict neuron_pointer_t neuron) {
+void vertex_model_print_state_variables(restrict neuron_pointer_t neuron) {
     log_debug("rank            = %k", K(neuron->rank));
     log_debug("curr_rank_acc   = %k", K(neuron->curr_rank_acc));
     log_debug("curr_rank_count = %d", neuron->curr_rank_count);
     log_debug("iter_state      = 0x%04x", neuron->iter_state);
 }
 
-void neuron_model_print_parameters(restrict neuron_pointer_t neuron) {
+void vertex_model_print_parameters(restrict neuron_pointer_t neuron) {
     log_debug("incoming_edges_count = %d", neuron->incoming_edges_count);
     log_debug("outgoing_edges_count = %d", neuron->outgoing_edges_count);
 }
