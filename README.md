@@ -5,7 +5,7 @@ Neuron model based on
 using PyNN 0.8 to implement model where a neuron represent a vertex in the Page 
 Rank algorithm.
 
+## Deprecated
 
-This is a sub-repository of my 
-[final year project](https://github.com/louisblin/FYP) where documentation / 
-examples will be maintained.
+This was moved to my 
+[final year project](https://github.com/louisblin/FYP) under `python/page_rank/model`.
