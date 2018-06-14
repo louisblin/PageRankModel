@@ -1,20 +1,20 @@
 /*! \file
  *
- *  \brief interface for neurons
+ *  \brief interface for vertices
  *
  *  The API contains:
- *    - neuron_initialise(address, recording_flags, n_neurons_value):
+ *    - vertex_initialise(address, recording_flags, n_vertices_value):
  *         translate the data stored in the NEURON_PARAMS data region in SDRAM
  *         and converts it into c based objects for use.
- *    - neuron_set_input_buffers(input_buffers_value):
+ *    - vertex_set_input_buffers(input_buffers_value):
  *         setter for the internal input buffers
- *    - neuron_do_timestep_update(time):
+ *    - vertex_do_timestep_update(time):
  *         executes all the updates to neural parameters when a given timer
  *         period has occurred.
  */
 
-#ifndef _NEURON_H_
-#define _NEURON_H_
+#ifndef _VERTEX_H_
+#define _VERTEX_H_
 
 #include <common/neuron-typedefs.h>
 #include <recording.h>
@@ -25,45 +25,38 @@
 //!            NEURON_PARAMS data region in SDRAM
 //! \param[in] recording_flags_param the recordings parameters
 //!            (contains which regions are active and how big they are)
-//! \param[out] n_neurons_value The number of neurons this model is to emulate
+//! \param[out] n_vertices_value The number of vertices this model is to emulate
 //! \param[out] incoming_spike_buffer_size The number of spikes to support in
 //!             the incoming spike buffer
 //! \return boolean which is True is the translation was successful
 //!         otherwise False
-bool neuron_initialise(
-    address_t address, uint32_t recording_flags, uint32_t *n_neurons_value,
+bool vertex_initialise(
+    address_t address, uint32_t recording_flags, uint32_t *n_vertices_value,
     uint32_t *incoming_spike_buffer_size);
-
-//! \setter for the internal synapse type parameters
-//! \param[in] synapse_shaping_params_value: the new synapse shaping params
-//! \return None
-void neuron_set_neuron_synapse_shaping_params(
-        synapse_param_t *neuron_synapse_shaping_params_value);
-
 
 //! \brief executes all the updates to neural parameters when a given timer
 //!        period has occurred.
 //! \param[in] time the timer tick value currently being executed
 //! \return nothing
-void neuron_do_timestep_update(uint32_t time);
+void vertex_do_timestep_update(uint32_t time);
 
-//! \brief interface for reloading neuron parameters as needed
-//! \param[in] address: the address where the neuron parameters are stored
+//! \brief interface for reloading vertex parameters as needed
+//! \param[in] address: the address where the vertex parameters are stored
 //! in SDRAM
-//! \return bool which is true if the reload of the neuron parameters was
+//! \return bool which is true if the reload of the vertex parameters was
 //! successful or not
-bool neuron_reload_neuron_parameters(address_t address);
+bool vertex_reload_neuron_parameters(address_t address);
 
-//! \brief interface for rewriting the neuron parameters back into sdram
+//! \brief interface for rewriting the vertex parameters back into sdram
 //! \param[in] address the absolute address in SDRAM for the start of the
 //!            NEURON_PARAMS data region in SDRAM
-void neuron_store_neuron_parameters(address_t address);
+void vertex_store_neuron_parameters(address_t address);
 
 //! \brief triggered when a spike is received (MCPL)
 //! \param[in] key the key received in the MC packet
 //! \param[in] payload the payload received in the MC packet
 //! \return nothing
-void update_neuron_payload(uint32_t key, spike_t payload);
+void update_vertex_payload(uint32_t key, spike_t payload);
 
 
-#endif // _NEURON_H_
+#endif // _VERTEX_H_

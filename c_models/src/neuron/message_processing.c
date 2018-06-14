@@ -1,9 +1,9 @@
-#include "spike_processing.h"
-#include "synapses.h"
-#include "models/neuron_model_page_rank.h"
+#include "message_processing.h"
+#include "message_dispatching.h"
+#include "models/vertex_model_page_rank.h"
 #include <neuron/population_table/population_table.h>
 #include <neuron/synapse_row.h>
-#include "../common/in_spikes.h"
+#include "in_messages.h"
 #include <simulation.h>
 #include <spin1_api.h>
 #include <debug.h>
@@ -51,17 +51,17 @@ static uint32_t single_fixed_synapse[4];
 /* PRIVATE FUNCTIONS - static for inlining */
 
 static inline bool _add_key_payload(uint key, uint payload) {
-    return in_spikes_add_key_payload(key, payload);
+    return in_messages_add_key_payload(key, payload);
 }
 
 static inline bool _get_key_payload() {
-    if (!in_spikes_get_next_spike(&spike_pkt_key)) {
+    if (!in_messages_get_next_spike(&spike_pkt_key)) {
         return false;
     }
 
-    if (!in_spikes_get_next_spike(&spike_pkt_payload)) {
+    if (!in_messages_get_next_spike(&spike_pkt_payload)) {
         log_error(
-            "_get_key_payload inconsistency: expected in_spikes items to be retrievable by "
+            "_get_key_payload inconsistency: expected in_messages items to be retrievable by "
             "pair (%03d[%08x]=?)", (0xff & spike_pkt_key), spike_pkt_key);
         return false;
     }
@@ -90,7 +90,7 @@ static inline void _do_direct_row(address_t row_address) {
     log_debug("_do_direct_row: row_address[0]=%u", ((uint32_t) row_address[0]));
 
     single_fixed_synapse[3] = (uint32_t) row_address[0];
-    synapses_process_synaptic_row_page_rank(single_fixed_synapse, spike_pkt_payload);
+    message_dispatching_process_synaptic_row_page_rank(single_fixed_synapse, spike_pkt_payload);
 }
 
 static inline void _setup_synaptic_dma_read() {
@@ -211,14 +211,14 @@ void _dma_complete_callback(uint unused, uint tag) {
     do {
 
         // Are there any more incoming spikes from the same pre-synaptic neuron?
-        subsequent_spikes = in_spikes_is_next_spike_equal(current_buffer->originating_spike_key);
+        subsequent_spikes = in_messages_is_next_spike_equal(current_buffer->originating_spike_key);
         spike_t payload = current_buffer->originating_spike_payload;
 
-        log_debug("synapses_process_synaptic_row_page_rank(%d, 0x%08x, 0x%08x)", time,
+        log_debug("message_dispatching_process_synaptic_row_page_rank(%d, 0x%08x, 0x%08x)", time,
             current_buffer->row, payload);
 
         // Process packet
-        if (!synapses_process_synaptic_row_page_rank(current_buffer->row, payload)) {
+        if (!message_dispatching_process_synaptic_row_page_rank(current_buffer->row, payload)) {
             log_error("Error processing spike 0x%08x=0x%08x for local=0x%.8x",
                 current_buffer->originating_spike_key, payload, current_buffer->row);
 
@@ -235,9 +235,9 @@ void _dma_complete_callback(uint unused, uint tag) {
 
 /* INTERFACE FUNCTIONS - cannot be static */
 
-bool spike_processing_initialise(
-        size_t row_max_n_words, uint mc_pkt_callback_priority,
-        uint user_event_priority, uint incoming_spike_buffer_size) {
+bool message_processing_initialise(
+        size_t row_max_n_words, uint32_t mc_pkt_callback_priority,
+        uint32_t user_event_priority, uint32_t incoming_spike_buffer_size) {
 
     // Check priority is -1, i.e. callback cannot be preempted
     if (mc_pkt_callback_priority != 0xffffffff) {
@@ -261,11 +261,11 @@ bool spike_processing_initialise(
 
     // Allocate incoming spike buffer
     // TODO: re-compute this
-    if (!in_spikes_initialize_spike_buffer(incoming_spike_buffer_size)) {
+    if (!in_messages_initialize_spike_buffer(incoming_spike_buffer_size)) {
         return false;
     }
 
-    // Set up for single fixed synapses (data that is consistent per direct row)
+    // Set up for single fixed message_dispatching (data that is consistent per direct row)
     single_fixed_synapse[0] = 0;
     single_fixed_synapse[1] = 1;
     single_fixed_synapse[2] = 0;
@@ -280,20 +280,20 @@ bool spike_processing_initialise(
 
 //! \brief returns the number of times the input buffer has overflowed
 //! \return the number of times the input buffer has overloaded
-uint32_t spike_processing_get_buffer_overflows() {
-    return in_spikes_get_n_buffer_overflows();
+uint32_t message_processing_get_buffer_overflows() {
+    return in_messages_get_n_buffer_overflows();
 }
 
-// Use state from spike_processing, don't inline nor static
+// Uses state from message_processing, don't inline nor static
 
 //! \brief forwards increment to in_spike
-payload_t spike_processing_payload_format(payload_t payload) {
-    return in_spikes_payload_format(payload);
+payload_t message_processing_payload_format(payload_t payload) {
+    return in_messages_payload_format(payload);
 }
 
 //! \brief forwards increment to in_spike
-uint32_t spike_processing_increment_iteration_number(void) {
-    return in_spikes_increment_iteration_number();
+uint32_t message_processing_increment_iteration_number(void) {
+    return in_messages_increment_iteration_number();
 }
 
 
